@@ -7,7 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAllDraws, useCreateDraw, useSetWinner, LotteryDraw, getDrawStatusText, getDrawStatusColor } from '@/hooks/use-lottery-draw'
 import { useAdminAuth } from '@/hooks/use-admin-auth'
 import { toast } from 'sonner'
-import { Plus, Trophy, Calendar, Clock, DollarSign, User, Hash } from 'lucide-react'
+import { Plus, Trophy, Calendar, Clock, DollarSign, User, Hash, Trash2 } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
 
 const DrawManagement = () => {
   const { data: draws, isLoading } = useAllDraws()
@@ -17,6 +18,7 @@ const DrawManagement = () => {
 
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [showWinnerForm, setShowWinnerForm] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
   
   // Form states
   const [newDraw, setNewDraw] = useState({
@@ -79,6 +81,21 @@ const DrawManagement = () => {
     } catch (error) {
       console.error('Error setting winner:', error)
       toast.error('Error al establecer ganador')
+    }
+  }
+
+  // Удаление розыгрыша
+  const handleDeleteDraw = async (drawId: string) => {
+    if (!window.confirm('¿Seguro que deseas eliminar este sorteo?')) return
+    setDeletingId(drawId)
+    try {
+      const { error } = await supabase.from('lottery_draws').delete().eq('id', drawId)
+      if (error) throw error
+      toast.success('Sorteo eliminado')
+    } catch (error) {
+      toast.error('Error al eliminar sorteo')
+    } finally {
+      setDeletingId(null)
     }
   }
 
@@ -279,6 +296,16 @@ const DrawManagement = () => {
                     )}
                   </div>
                 )}
+                <Button
+                  onClick={() => handleDeleteDraw(draw.id)}
+                  disabled={deletingId === draw.id}
+                  size="sm"
+                  variant="outline"
+                  className="mt-2 border-red-500 text-red-400 hover:bg-red-500/10 w-full flex items-center gap-2"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  {deletingId === draw.id ? 'Eliminando...' : 'Eliminar'}
+                </Button>
               </div>
             </motion.div>
           ))

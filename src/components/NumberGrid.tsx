@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useBlockedNumbers } from "@/hooks/use-supabase";
 import { Loader2 } from "lucide-react";
-import { useCurrentDraw } from '@/hooks/use-lottery-draw'
+// import { useCurrentDraw } from '@/hooks/use-lottery-draw' // больше не нужен
 
 interface NumberGridProps {
   selectedNumbers: number[];
@@ -11,8 +11,8 @@ interface NumberGridProps {
 
 const NumberGrid = ({ selectedNumbers, onNumberSelect }: NumberGridProps) => {
   const { data: blockedNumbers, isLoading, error } = useBlockedNumbers();
-  const { data: currentDraw } = useCurrentDraw()
-  const isActiveDraw = currentDraw && (currentDraw.status === 'scheduled' || currentDraw.status === 'active')
+  // const { data: currentDraw } = useCurrentDraw()
+  // const isActiveDraw = currentDraw && (currentDraw.status === 'scheduled' || currentDraw.status === 'active')
   const numbers = Array.from({ length: 100 }, (_, i) => i + 1);
 
   // Добавляем логирование для диагностики
@@ -29,16 +29,16 @@ const NumberGrid = ({ selectedNumbers, onNumberSelect }: NumberGridProps) => {
       case 'blocked':
         return 'bg-red-500 text-white border border-red-600 rounded-lg cursor-not-allowed opacity-60';
       case 'selected':
-        return 'bg-purple-600 text-white border border-purple-700 rounded-lg shadow-lg scale-105 hover:bg-white hover:text-purple-600 hover:border-purple-600';
+        // Всегда фиолетовая, без hover-эффекта
+        return 'bg-purple-600 text-white border border-purple-700 rounded-lg shadow-lg scale-105';
       case 'available':
       default:
+        // Для доступных — оставить hover-эффекты
         return 'bg-white/10 backdrop-blur-sm text-gray-800 border border-gray-300 rounded-lg hover:bg-white/20 hover:border-purple-500 hover:scale-105 hover:text-purple-700';
     }
   };
 
   const handleNumberClick = (number: number) => {
-    if (!isActiveDraw) return; // Блокируем выбор
-
     const status = getNumberStatus(number);
     
     if (status === 'blocked') return;
@@ -87,7 +87,7 @@ const NumberGrid = ({ selectedNumbers, onNumberSelect }: NumberGridProps) => {
               key={number}
               className={`aspect-square text-sm sm:text-base font-bold relative min-h-[3rem] sm:min-h-[3.5rem] transition-all duration-200 ${getNumberStyles(status)}`}
               onClick={() => handleNumberClick(number)}
-              disabled={status === 'blocked' || !isActiveDraw}
+              disabled={status === 'blocked'}
             >
               {number}
             </Button>

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useCurrentDraw, formatTimeRemaining, useUpdateDrawStatus } from '@/hooks/use-lottery-draw'
-import { Clock, Trophy, Timer, Sparkles, Hourglass } from 'lucide-react'
+import { Clock, Trophy, Timer, Sparkles } from 'lucide-react'
 
 const DrawStatus = () => {
   const { data: currentDraw, refetch } = useCurrentDraw()
@@ -35,33 +35,9 @@ const DrawStatus = () => {
     return () => clearInterval(interval)
   }, [currentDraw?.draw_date, currentDraw?.status, updateDrawStatus])
 
-  // Crystal glass modal если нет активного розыгрыша
-  if (!isActiveDraw) {
-    return (
-      <AnimatePresence>
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-center justify-center"
-        >
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-          <motion.div
-            initial={{ scale: 0.95, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.95, opacity: 0 }}
-            className="relative z-10 bg-white/10 backdrop-blur-2xl border border-white/20 rounded-3xl shadow-2xl p-8 max-w-md w-full text-center flex flex-col items-center"
-          >
-            <Hourglass className="w-16 h-16 text-purple-400 mb-4 animate-pulse" />
-            <h2 className="text-2xl font-bold text-white mb-2">El próximo sorteo comenzará pronto</h2>
-            <p className="text-gray-200 mb-4">Por favor, espera el inicio del siguiente sorteo.</p>
-            <div className="flex justify-center gap-2 mt-2">
-              <span className="bg-white/10 px-4 py-2 rounded-xl text-lg font-mono text-white tracking-widest">00:00:00</span>
-            </div>
-          </motion.div>
-        </motion.div>
-      </AnimatePresence>
-    )
+  // Если нет активного розыгрыша — ничего не показываем
+  if (!isActiveDraw && !(currentDraw && currentDraw.status === 'finished')) {
+    return null
   }
 
   // Sorteo finalizado - mostrar ganador
