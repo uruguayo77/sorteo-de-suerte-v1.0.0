@@ -7,12 +7,15 @@ import PaymentDetails from "@/components/PaymentDetails";
 import PaymentForm from "@/components/PaymentForm";
 import SuccessMessage from "@/components/SuccessMessage";
 import WinnerNotification from "@/components/WinnerNotification";
+import DrawStatus from "@/components/DrawStatus";
 import { useToast } from "@/hooks/use-toast";
-import { useCreateReservation, useWinners } from "@/hooks/use-supabase";
+import { useWinners } from "@/hooks/use-supabase";
+import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { testSupabaseConnection } from "@/lib/test-connection";
 import { useEffect } from "react";
 import { FlipWords } from "@/components/ui/flip-words";
 import CountdownReel from "@/components/ui/countdown-reel";
+import { Link } from "react-router-dom";
 
 type Step = 'number-selection' | 'payment-method' | 'payment-details' | 'payment-form' | 'success';
 type PaymentMethodType = 'pago-movil' | 'binance' | 'bybit' | null;
@@ -24,8 +27,8 @@ const Index = () => {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType>(null);
   const [showWinnerNotification, setShowWinnerNotification] = useState(false);
   const { toast } = useToast();
-  const createReservation = useCreateReservation();
   const { data: winners } = useWinners();
+  const { isAuthenticated } = useAdminAuth();
 
   // Тестируем подключение к Supabase при загрузке
   useEffect(() => {
@@ -67,45 +70,19 @@ const Index = () => {
     setCurrentStep('payment-form');
   };
 
-  const handleFormSubmit = async (formData: { nombre: string; apellido: string; telefono: string; cedula: string; comprobante: File | null }) => {
-    try {
-      // Создаем резервации в Supabase для всех выбранных номеров
-      for (const number of selectedNumbers) {
-        await createReservation.mutateAsync({
-          number: number,
-          user_name: `${formData.nombre} ${formData.apellido}`,
-          user_phone: formData.telefono,
-          payment_method: paymentMethod!,
-          payment_details: formData.cedula,
-          status: 'pending'
-        });
+  const handleFormSubmit = (formData: { nombre: string; apellido: string; telefono: string; cedula: string; comprobante: File | null }) => {
+    setCurrentStep('success');
+    
+    // Проверяем, есть ли победители среди выбранных номеров
+    if (winners && winners.length > 0) {
+      const winningNumbers = selectedNumbers.filter(number => 
+        winners.some(winner => winner.number === number)
+      );
+      if (winningNumbers.length > 0) {
+        setTimeout(() => {
+          setShowWinnerNotification(true);
+        }, 3000);
       }
-      
-      toast({
-        title: "¡Reserva creada!",
-        description: "Tu número ha sido reservado exitosamente",
-      });
-      
-      setCurrentStep('success');
-      
-      // Проверяем, есть ли победители среди выбранных номеров
-      if (winners && winners.length > 0) {
-        const winningNumbers = selectedNumbers.filter(number => 
-          winners.some(winner => winner.number === number)
-        );
-        if (winningNumbers.length > 0) {
-          setTimeout(() => {
-            setShowWinnerNotification(true);
-          }, 3000);
-        }
-      }
-    } catch (error) {
-      console.error('Error creating reservation:', error);
-      toast({
-        title: "Error",
-        description: "No se pudo crear la reserva. Intenta de nuevo.",
-        variant: "destructive",
-      });
     }
   };
 
@@ -282,6 +259,52 @@ const Index = () => {
           onClose={() => setShowWinnerNotification(false)}
         />
       )}
+
+      {/* Admin Panel Access - positioned in header */}
+      <div className="fixed top-4 right-4 z-50">
+        {isAuthenticated ? (
+          <Link to="/admin">
+            <Button
+              className="bg-gray-800/90 hover:bg-gray-700 text-white border border-gray-600 rounded-full p-3 shadow-lg backdrop-blur-sm"
+              size="sm"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <g clipPath="url(#clip0_3111_32640)">
+                  <path d="M15.02 3.01001C14.18 2.37001 13.14 2 12 2C9.24 2 7 4.24 7 7C7 9.76 9.24 12 12 12C14.76 12 17 9.76 17 7" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M20.59 22C20.59 18.13 16.74 15 12 15C7.26 15 3.41 18.13 3.41 22" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </g>
+                <defs>
+                  <clipPath id="clip0_3111_32640">
+                    <rect width="24" height="24" fill="white"/>
+                  </clipPath>
+                </defs>
+              </svg>
+            </Button>
+          </Link>
+        ) : (
+          <Link to="/admin/login">
+            <Button
+              className="bg-gray-800/90 hover:bg-gray-700 text-white border border-gray-600 rounded-full p-3 shadow-lg backdrop-blur-sm"
+              size="sm"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <g clipPath="url(#clip0_3111_32640)">
+                  <path d="M15.02 3.01001C14.18 2.37001 13.14 2 12 2C9.24 2 7 4.24 7 7C7 9.76 9.24 12 12 12C14.76 12 17 9.76 17 7" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M20.59 22C20.59 18.13 16.74 15 12 15C7.26 15 3.41 18.13 3.41 22" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </g>
+                <defs>
+                  <clipPath id="clip0_3111_32640">
+                    <rect width="24" height="24" fill="white"/>
+                  </clipPath>
+                </defs>
+              </svg>
+            </Button>
+          </Link>
+        )}
+      </div>
+
+      {/* Draw Status - shows countdown, waiting for results, or winner */}
+      <DrawStatus />
     </div>
   );
 };

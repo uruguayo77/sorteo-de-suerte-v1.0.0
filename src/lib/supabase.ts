@@ -20,6 +20,7 @@ export interface NumberReservation {
   payment_method: string
   payment_details: string
   status: 'pending' | 'confirmed' | 'cancelled'
+  application_id?: string // Связь с заявкой
   created_at: string
   updated_at: string
 }
@@ -32,4 +33,28 @@ export interface Winner {
   prize_amount: string
   claimed: boolean
   created_at: string
+}
+
+// Новый тип для заявок пользователей
+export interface Application {
+  id: string
+  numbers: number[]
+  user_name: string
+  user_phone: string
+  cedula: string
+  payment_method: string
+  payment_proof_url?: string
+  status: 'pending' | 'approved' | 'rejected'
+  admin_notes?: string
+  created_at: string
+  updated_at: string
+}
+
+// Тип для создания новой заявки
+export type CreateApplicationData = Omit<Application, 'id' | 'created_at' | 'updated_at' | 'status' | 'admin_notes'>
+
+// Тип для обновления заявки (только для админа)
+export type UpdateApplicationData = {
+  status: Application['status']
+  admin_notes?: string
 } 

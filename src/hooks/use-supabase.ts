@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { supabase, NumberReservation, Winner } from '@/lib/supabase'
+import { supabase, NumberReservation, Winner, Application, CreateApplicationData, UpdateApplicationData } from '@/lib/supabase'
 
 // Хук для получения занятых номеров
 export const useOccupiedNumbers = () => {
@@ -102,5 +102,117 @@ export const useStatistics = () => {
       }
     },
     refetchInterval: 300000, // Обновляем каждые 5 минут
+  })
+} 
+
+// Хук для создания заявки
+export const useCreateApplication = () => {
+  const queryClient = useQueryClient()
+  
+  return useMutation({
+    mutationFn: async (applicationData: CreateApplicationData) => {
+      const { data, error } = await supabase
+        .from('applications')
+        .insert([applicationData])
+        .select()
+        .single()
+      
+      if (error) throw error
+      return data as Application
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['occupiedNumbers'] })
+      queryClient.invalidateQueries({ queryKey: ['blockedNumbers'] })
+      queryClient.invalidateQueries({ queryKey: ['applications'] })
+    },
+  })
+}
+
+// Хук для получения всех заявок (для админа)
+export const useApplications = () => {
+  return useQuery({
+    queryKey: ['applications'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('applications')
+        .select('*')
+        .order('created_at', { ascending: false })
+      
+      if (error) throw error
+      return data as Application[]
+    },
+    refetchInterval: 30000,
+  })
+}
+
+// Хук для обновления статуса заявки (для админа)
+export const useUpdateApplication = () => {
+  const queryClient = useQueryClient()
+  
+  return useMutation({
+    mutationFn: async ({ id, updates }: { id: string, updates: UpdateApplicationData }) => {
+      const { data, error } = await supabase
+        .from('applications')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single()
+      
+      if (error) throw error
+      return data as Application
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['applications'] })
+      queryClient.invalidateQueries({ queryKey: ['occupiedNumbers'] })
+      queryClient.invalidateQueries({ queryKey: ['blockedNumbers'] })
+    },
+  })
+}
+
+// Хук для получения заблокированных номеров (заменяет useOccupiedNumbers) - временная упрощенная версия
+export const useBlockedNumbers = () => {
+  return useQuery({
+    queryKey: ['blockedNumbers'],
+    queryFn: async () => {
+      // Временно возвращаем пустой набор для тестирования
+      console.log('useBlockedNumbers: fetching data...')
+      
+      try {
+        // Используем старую логику с confirmed reservations
+        const { data, error } = await supabase
+          .from('number_reservations')
+          .select('number')
+          .eq('status', 'confirmed')
+        
+        console.log('useBlockedNumbers result:', { data, error })
+        
+        if (error) throw error
+        const blockedNumbers = new Set(data?.map(item => item.number) || [])
+        console.log('Blocked numbers:', Array.from(blockedNumbers))
+        return blockedNumbers
+      } catch (error) {
+        console.error('useBlockedNumbers error:', error)
+        // В случае ошибки возвращаем пустой набор, чтобы показать все номера как доступные
+        return new Set()
+      }
+    },
+    refetchInterval: 30000,
+  })
+}
+
+// Хук для загрузки файла компробанте
+export const useUploadPaymentProof = () => {
+  return useMutation({
+    mutationFn: async (file: File) => {
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`
+      
+      const { data, error } = await supabase.storage
+        .from('payment-proofs')
+        .upload(fileName, file)
+      
+      if (error) throw error
+      return data.path
+    },
   })
 } 
