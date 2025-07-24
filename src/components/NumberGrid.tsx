@@ -29,10 +29,10 @@ const NumberGrid = ({ selectedNumbers, onNumberSelect }: NumberGridProps) => {
       case 'blocked':
         return 'bg-red-500 text-white border border-red-600 rounded-lg cursor-not-allowed opacity-60';
       case 'selected':
-        return 'bg-purple-600 text-white border border-purple-700 rounded-lg shadow-lg scale-105';
+        // Всегда фиолетовая, без эффекта нажатия/outline/ring
+        return 'bg-purple-600 text-white border border-purple-700 rounded-lg shadow-lg scale-105 focus:outline-none focus:ring-0 active:bg-purple-600';
       case 'available':
       default:
-        // Без hover-эффектов
         return 'bg-white/10 backdrop-blur-sm text-gray-800 border border-gray-300 rounded-lg';
     }
   };
