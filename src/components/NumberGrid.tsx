@@ -29,12 +29,11 @@ const NumberGrid = ({ selectedNumbers, onNumberSelect }: NumberGridProps) => {
       case 'blocked':
         return 'bg-red-500 text-white border border-red-600 rounded-lg cursor-not-allowed opacity-60';
       case 'selected':
-        // Всегда фиолетовая, без hover-эффекта
         return 'bg-purple-600 text-white border border-purple-700 rounded-lg shadow-lg scale-105';
       case 'available':
       default:
-        // Для доступных — оставить hover-эффекты
-        return 'bg-white/10 backdrop-blur-sm text-gray-800 border border-gray-300 rounded-lg hover:bg-white/20 hover:border-purple-500 hover:scale-105 hover:text-purple-700';
+        // Без hover-эффектов
+        return 'bg-white/10 backdrop-blur-sm text-gray-800 border border-gray-300 rounded-lg';
     }
   };
 
