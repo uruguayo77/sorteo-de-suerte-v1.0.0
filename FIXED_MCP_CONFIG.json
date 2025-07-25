@@ -1,0 +1,61 @@
+{
+  "mcpServers": {
+    "supabase": {
+      "command": "npx",
+      "args": [
+        "@supabase/mcp-server-supabase@latest",
+        "--project-ref",
+        "yetjflxjxujdhemailxx"
+      ],
+      "env": {
+        "SUPABASE_ACCESS_TOKEN": "sbp_0e51d7ffced0d731afe6a65999f77a3bddcc63d3"
+      }
+    },
+    "Endgame": {
+      "command": "npx",
+      "args": [
+        "endgame-mcp@latest"
+      ],
+      "env": {
+        "API_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2ODVlYmI4YTIwMDExMDhmMDE2MDQ3MDgiLCJlbWFpbCI6ImljcnlwdG9mcmVha25mdEBnbWFpbC5jb20iLCJ0eXBlIjoiYXBpIiwiaWF0IjoxNzUxMDM4ODU4fQ.UkYP-Odf33aQZReYWDZ-KtizBGNteE_j6ymM5cuA6zU"
+      }
+    },
+    "context7": {
+      "url": "https://mcp.context7.com/mcp",
+      "headers": {}
+    }
+  },
+  "projectDefaults": {
+    "uiLibraries": {
+      "mui": {
+        "name": "MUI Material",
+        "description": "Material Design компоненты",
+        "package": "@mui/material @emotion/react @emotion/styled",
+        "usage": "Используется для Material Design интерфейсов"
+      },
+      "heroUI": {
+        "name": "HeroUI",
+        "description": "Современные компоненты",
+        "package": "@heroui/react @heroui/themes",
+        "usage": "Используется для современных и стильных интерфейсов"
+      },
+      "shadcn": {
+        "name": "shadcn/ui",
+        "description": "Копируемые компоненты",
+        "package": "shadcn-ui",
+        "usage": "Используется для кастомизируемых и копируемых компонентов"
+      },
+      "tailwind": {
+        "name": "Tailwind CSS",
+        "description": "Utility-first стили",
+        "package": "tailwindcss postcss autoprefixer",
+        "usage": "Используется для быстрой стилизации с utility-классами"
+      }
+    },
+    "developmentTools": {
+      "typescript": "Обязательно использовать TypeScript для всех проектов",
+      "vite": "Использовать Vite как сборщик для быстрой разработки",
+      "react": "Использовать React как основную библиотеку для UI"
+    }
+  }
+} 

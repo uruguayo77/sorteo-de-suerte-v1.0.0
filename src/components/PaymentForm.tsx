@@ -5,13 +5,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Upload, X, FileImage } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useCreateApplication, useUploadPaymentProof } from "@/hooks/use-supabase";
+import { useCreateApplication, useUploadPaymentProof, useCompleteTemporaryApplication } from "@/hooks/use-supabase";
 import type { CreateApplicationData } from "@/lib/supabase";
 
 interface PaymentFormProps {
   selectedNumbers: number[];
   paymentMethod: string;
   onSubmit: (data: { nombre: string; apellido: string; telefono: string; cedula: string; comprobante: File | null }) => void;
+  reservationId?: string | null; // ID резервации для обновления
 }
 
 interface FormData {
@@ -22,7 +23,7 @@ interface FormData {
   comprobante: File | null;
 }
 
-const PaymentForm = ({ selectedNumbers, paymentMethod, onSubmit }: PaymentFormProps) => {
+const PaymentForm = ({ selectedNumbers, paymentMethod, onSubmit, reservationId }: PaymentFormProps) => {
   const [formData, setFormData] = useState<FormData>({
     cedula: '',
     nombre: '',
@@ -34,6 +35,7 @@ const PaymentForm = ({ selectedNumbers, paymentMethod, onSubmit }: PaymentFormPr
   const { toast } = useToast();
   const createApplication = useCreateApplication();
   const uploadPaymentProof = useUploadPaymentProof();
+  const completeTemporaryApplication = useCompleteTemporaryApplication();
 
 
   const handleInputChange = (field: keyof FormData, value: string) => {
@@ -98,9 +100,7 @@ const PaymentForm = ({ selectedNumbers, paymentMethod, onSubmit }: PaymentFormPr
       // 1. Загружаем компробанте
       const paymentProofUrl = await uploadPaymentProof.mutateAsync(formData.comprobante);
 
-      // 2. Создаем заявку
-      const applicationData: CreateApplicationData = {
-        numbers: selectedNumbers,
+      const userData = {
         user_name: `${formData.nombre} ${formData.apellido}`,
         user_phone: formData.telefono,
         cedula: formData.cedula,
@@ -108,16 +108,35 @@ const PaymentForm = ({ selectedNumbers, paymentMethod, onSubmit }: PaymentFormPr
         payment_proof_url: paymentProofUrl
       };
 
-      await createApplication.mutateAsync(applicationData);
+      if (reservationId) {
+        // 2a. Завершаем временную заявку (обновляем данные пользователя)
+        await completeTemporaryApplication.mutateAsync({
+          applicationId: reservationId,
+          userData
+        });
 
-      toast({
-        title: "¡Solicitud enviada!",
-        description: "Tu solicitud está en revisión. Te contactaremos pronto.",
-      });
+        toast({
+          title: "¡Reserva confirmada!",
+          description: "Tu solicitud de números reservados está en revisión. Te contactaremos pronto.",
+        });
+      } else {
+        // 2b. Создаем новую заявку (старый способ)
+        const applicationData: CreateApplicationData = {
+          numbers: selectedNumbers,
+          ...userData
+        };
+
+        await createApplication.mutateAsync(applicationData);
+
+        toast({
+          title: "¡Solicitud enviada!",
+          description: "Tu solicitud está en revisión. Te contactaremos pronto.",
+        });
+      }
       
       onSubmit(formData);
     } catch (error) {
-      console.error('Error creating application:', error);
+      console.error('Error processing application:', error);
       toast({
         title: "Error",
         description: "No se pudo enviar la solicitud. Intenta de nuevo.",

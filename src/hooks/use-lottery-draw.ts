@@ -33,10 +33,9 @@ export const useCurrentDraw = () => {
   return useQuery({
     queryKey: ['currentDraw'],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('get_current_draw')
-      
-      if (error) throw error
-      return data?.[0] as LotteryDraw | null
+      // Временно возвращаем null, так как мы используем Zustand store для управления лотереями
+      // Эта функция может быть интегрирована позже, если потребуется
+      return null as LotteryDraw | null
     },
     refetchInterval: 10000, // Обновляем каждые 10 секунд
   })
@@ -47,10 +46,8 @@ export const useAllDraws = () => {
   return useQuery({
     queryKey: ['allDraws'],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('get_all_draws')
-      
-      if (error) throw error
-      return data as LotteryDraw[]
+      // Временно возвращаем пустой массив, так как мы используем Zustand store
+      return [] as LotteryDraw[]
     },
     refetchInterval: 30000,
   })
@@ -127,31 +124,18 @@ export const useUpdateDrawStatus = () => {
   })
 }
 
-// Хук для получения настроек лотереи
-export const useLotterySettings = () => {
-  return useQuery({
-    queryKey: ['lotterySettings'],
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc('get_lottery_settings')
-      
-      if (error) throw error
-      return data as LotterySetting[]
-    },
-    refetchInterval: 60000, // Обновляем каждую минуту
-  })
-}
+// Хук для получения настроек лотереи - убираем заглушку, используем настоящие хуки из use-supabase.ts
+// export const useLotterySettings = () => {
+//   Используйте useLotterySettings из '@/hooks/use-supabase' вместо этого
+// }
 
 // Хук для получения конкретной настройки
 export const useLotterySetting = (settingKey: string) => {
   return useQuery({
     queryKey: ['lotterySetting', settingKey],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('get_lottery_setting', {
-        setting_key_input: settingKey
-      })
-      
-      if (error) throw error
-      return data as string
+      // Временно возвращаем пустую строку
+      return '' as string
     },
     enabled: !!settingKey,
   })

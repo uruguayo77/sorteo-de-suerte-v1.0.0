@@ -1,21 +1,28 @@
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
-import { useApplications, useUpdateApplication } from '@/hooks/use-supabase'
+import { useApplications, useApplicationsGroupedByDraw, useUpdateApplication } from '@/hooks/use-supabase'
+import { useScheduledDrawAutostart } from '@/hooks/use-scheduled-draws'
 import { useAdminAuth } from '@/hooks/use-admin-auth'
 import { Application } from '@/lib/supabase'
 import { toast } from 'sonner'
-import { Check, X, Clock, User, Phone, CreditCard, Image as ImageIcon, Calendar, FileText, LogOut, ArrowLeft, Users, Trophy } from 'lucide-react'
+import { Check, X, Clock, User, Phone, CreditCard, Image as ImageIcon, Calendar, FileText, LogOut, ArrowLeft, Users, Trophy, Search, Filter } from 'lucide-react'
 import { useNavigate, Link } from 'react-router-dom'
-import DrawManagement from '@/components/admin/DrawManagement'
+import { AdminLotteryPanel } from '@/components/AdminLotteryPanel'
 
 const Admin = () => {
   const { data: applications, isLoading: applicationsLoading, error } = useApplications()
+  const { data: groupedApplications, isLoading: groupedLoading } = useApplicationsGroupedByDraw()
   const { isAuthenticated, isLoading: authLoading, logout, getAdminEmail } = useAdminAuth()
   const updateApplication = useUpdateApplication()
+  
+  // Автоматический запуск отложенных розыгрышей
+  useScheduledDrawAutostart()
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null)
   const [adminNotes, setAdminNotes] = useState('')
   const [activeTab, setActiveTab] = useState<'applications' | 'draws'>('applications')
+  const [searchTerm, setSearchTerm] = useState('')
+  const [selectedDrawId, setSelectedDrawId] = useState<string | null>(null)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -87,7 +94,31 @@ const Admin = () => {
     })
   }
 
-  if (authLoading || applicationsLoading) {
+  // Фильтрация заявок по поиску и выбранному розыгрышу
+  const filteredGroupedApplications = groupedApplications?.filter(group => {
+    // Фильтр по выбранному розыгрышу
+    if (selectedDrawId && group.draw_id !== selectedDrawId) {
+      return false
+    }
+    
+    // Фильтр по поисковому запросу
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase()
+      return (
+        group.draw_name.toLowerCase().includes(searchLower) ||
+        group.applications.some(app => 
+          app.user_name.toLowerCase().includes(searchLower) ||
+          app.cedula.toLowerCase().includes(searchLower) ||
+          app.user_phone.includes(searchTerm) ||
+          app.numbers.some(num => num.toString().includes(searchTerm))
+        )
+      )
+    }
+    
+    return true
+  })
+
+  if (authLoading || applicationsLoading || groupedLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
         <div className="text-center">
@@ -190,16 +221,117 @@ const Admin = () => {
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.3 }}
             >
-              {applications && applications.length > 0 ? (
-                <div className="grid gap-6">
-                  {applications.map((application) => (
-              <motion.div
-                key={application.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-white/10 backdrop-blur-sm border border-gray-700 rounded-2xl p-6 hover:bg-white/15 transition-all duration-200"
-              >
-                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+              {/* Поиск и фильтры */}
+              <div className="mb-6 space-y-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {/* Поиск */}
+                  <div className="relative">
+                    <Search className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Buscar por nombre, cédula, teléfono, números..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full pl-10 pr-4 py-3 bg-white/10 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    />
+                  </div>
+                  
+                  {/* Фильтр по розыгрышу */}
+                  <div className="relative">
+                    <Filter className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <select
+                      value={selectedDrawId || ''}
+                      onChange={(e) => setSelectedDrawId(e.target.value || null)}
+                      className="w-full pl-10 pr-4 py-3 bg-white/10 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent appearance-none"
+                    >
+                      <option value="">Todos los sorteos</option>
+                      {groupedApplications?.map(group => (
+                        <option key={group.draw_id || 'no-draw'} value={group.draw_id || ''}>
+                          {group.draw_name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                
+                {/* Botón limpiar filtros */}
+                {(searchTerm || selectedDrawId) && (
+                  <button
+                    onClick={() => {
+                      setSearchTerm('')
+                      setSelectedDrawId(null)
+                    }}
+                    className="text-purple-400 hover:text-purple-300 text-sm font-medium"
+                  >
+                    Limpiar filtros
+                  </button>
+                )}
+              </div>
+
+              {filteredGroupedApplications && filteredGroupedApplications.length > 0 ? (
+                <div className="space-y-8">
+                                     {filteredGroupedApplications.map((group) => (
+                    <motion.div
+                      key={group.draw_id || 'no-draw'}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="bg-white/5 backdrop-blur-sm border border-gray-700 rounded-2xl overflow-hidden"
+                    >
+                      {/* Заголовок группы - информация о розыгрыше */}
+                      <div className="bg-gradient-to-r from-purple-600/20 to-blue-600/20 border-b border-gray-700 p-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                          <div className="flex items-center gap-3">
+                            <Trophy className="w-6 h-6 text-purple-400" />
+                            <div>
+                              <h3 className="text-lg font-bold text-white">{group.draw_name}</h3>
+                              <div className="flex items-center gap-4 text-sm text-gray-300">
+                                {group.draw_date && (
+                                  <span className="flex items-center gap-1">
+                                    <Calendar className="w-4 h-4" />
+                                    {formatDate(group.draw_date)}
+                                  </span>
+                                )}
+                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                  group.draw_status === 'finished' ? 'bg-green-500/20 text-green-300' :
+                                  group.draw_status === 'active' ? 'bg-orange-500/20 text-orange-300' :
+                                  group.draw_status === 'scheduled' ? 'bg-blue-500/20 text-blue-300' :
+                                  'bg-gray-500/20 text-gray-300'
+                                }`}>
+                                  {group.draw_status === 'finished' ? 'Finalizado' :
+                                   group.draw_status === 'active' ? 'Activo' :
+                                   group.draw_status === 'scheduled' ? 'Programado' : 'Cancelado'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="text-right">
+                            <div className="text-2xl font-bold text-purple-400">
+                              {group.applications.length}
+                            </div>
+                            <div className="text-sm text-gray-300">
+                              {group.applications.length === 1 ? 'solicitud' : 'solicitudes'}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Información del ganador si existe */}
+                        {group.winner_number && (
+                          <div className="mt-3 p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
+                            <div className="flex items-center gap-2 text-green-300">
+                              <Trophy className="w-4 h-4" />
+                              <span className="font-medium">Ganador: #{group.winner_number}</span>
+                              {group.winner_name && <span>- {group.winner_name}</span>}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                                             {/* Lista de заявок для этого розыгрыша */}
+                       <div className="p-4 space-y-4">
+                         {group.applications.map((application) => (
+                           <div key={application.id} className="bg-white/5 border border-gray-600 rounded-xl p-4 hover:bg-white/10 transition-all duration-200">
+                             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                   {/* Left side - Application info */}
                   <div className="flex-1 space-y-4">
                     {/* Header with status and date */}
@@ -297,15 +429,26 @@ const Admin = () => {
                       </Button>
                     </div>
                   )}
-                </div>
-              </motion.div>
-            ))}
-          </div>
+                             </div>
+                           </div>
+                         ))}
+                       </div>
+                     </motion.div>
+                   ))}
+                 </div>
                 ) : (
                   <div className="text-center py-16">
                     <div className="bg-white/10 backdrop-blur-sm border border-gray-700 rounded-2xl p-8 max-w-md mx-auto">
-                      <p className="text-gray-300 text-lg mb-2">No hay solicitudes</p>
-                      <p className="text-gray-400 text-sm">Las nuevas solicitudes aparecerán aquí</p>
+                      <Users className="mx-auto h-16 w-16 text-gray-600 mb-4" />
+                      <p className="text-gray-300 text-lg mb-2">
+                        {searchTerm || selectedDrawId ? 'No se encontraron solicitudes' : 'No hay solicitudes'}
+                      </p>
+                      <p className="text-gray-400 text-sm">
+                        {searchTerm || selectedDrawId 
+                          ? 'Intenta cambiar los filtros de búsqueda.'
+                          : 'Las solicitudes aparecerán aquí agrupadas por sorteo.'
+                        }
+                      </p>
                     </div>
                   </div>
                 )}
@@ -320,7 +463,7 @@ const Admin = () => {
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.3 }}
               >
-                <DrawManagement />
+                <AdminLotteryPanel />
               </motion.div>
             )}
           </AnimatePresence>

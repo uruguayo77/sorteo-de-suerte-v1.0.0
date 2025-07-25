@@ -1,9 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-
-interface CountdownReelProps {
-  targetDate?: Date;
-}
+import { useLotteryStore } from "@/lib/lotteryStore";
 
 interface TimeDisplay {
   hours: string;
@@ -12,74 +9,76 @@ interface TimeDisplay {
   ampm: string;
 }
 
-const CountdownReel = ({ targetDate }: CountdownReelProps) => {
+const CountdownReel = () => {
+  const { 
+    isActive, 
+    isPaused, 
+    isCompleted, 
+    lotteryName, 
+    prizeAmount, 
+    getRemainingTime,
+    completeLottery,
+    endTime
+  } = useLotteryStore();
+
   const [currentTime, setCurrentTime] = useState({
+    days: 0,
     hours: 0,
     minutes: 0,
-    seconds: 0,
-    ampm: "AM"
+    seconds: 0
   });
   
   const prevTimeRef = useRef({
+    days: 0,
     hours: 0,
     minutes: 0,
-    seconds: 0,
-    ampm: "AM"
+    seconds: 0
   });
-
-  // Если не передана целевая дата, устанавливаем следующий день в 20:00
-  const getTargetDate = () => {
-    if (targetDate) return targetDate;
-    
-    const now = new Date();
-    const target = new Date();
-    target.setHours(20, 0, 0, 0); // 8:00 PM
-    
-    // Если уже прошло 20:00 сегодня, устанавливаем на завтра
-    if (now > target) {
-      target.setDate(target.getDate() + 1);
-    }
-    
-    return target;
-  };
 
   useEffect(() => {
     const calculateTimeLeft = () => {
-      const target = getTargetDate();
-      const now = new Date();
-      const difference = target.getTime() - now.getTime();
+      // Если нет активного розыгрыша, показываем 00:00:00:00
+      if (!isActive || isPaused || isCompleted) {
+        setCurrentTime({
+          days: 0,
+          hours: 0,
+          minutes: 0,
+          seconds: 0
+        });
+        return;
+      }
 
-      if (difference > 0) {
-        const totalHours = Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-        const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
-        const seconds = Math.floor((difference % (1000 * 60)) / 1000);
-
-        // Конвертируем в 12-часовой формат
-        let displayHours = totalHours;
-        let ampm = "AM";
-        
-        if (totalHours === 0) {
-          displayHours = 12;
-        } else if (totalHours > 12) {
-          displayHours = totalHours - 12;
-          ampm = "PM";
-        } else if (totalHours === 12) {
-          ampm = "PM";
-        }
+      const remainingMs = getRemainingTime();
+      
+      if (remainingMs > 0) {
+        const totalSeconds = Math.floor(remainingMs / 1000);
+        const days = Math.floor(totalSeconds / (24 * 3600));
+        const hours = Math.floor((totalSeconds % (24 * 3600)) / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
 
         setCurrentTime({
-          hours: displayHours,
-          minutes: minutes,
-          seconds: seconds,
-          ampm: ampm
+          days,
+          hours,
+          minutes,
+          seconds
+        });
+      } else if (isActive && !isCompleted) {
+        // Время истекло - автоматически завершаем розыгрыш
+        completeLottery();
+        setCurrentTime({
+          days: 0,
+          hours: 0,
+          minutes: 0,
+          seconds: 0
         });
       } else {
-        // Если время истекло, сбрасываем на следующий день
+        // Время истекло
         setCurrentTime({
-          hours: 12,
+          days: 0,
+          hours: 0,
           minutes: 0,
-          seconds: 0,
-          ampm: "AM"
+          seconds: 0
         });
       }
     };
@@ -88,36 +87,40 @@ const CountdownReel = ({ targetDate }: CountdownReelProps) => {
     const timer = setInterval(calculateTimeLeft, 1000);
 
     return () => clearInterval(timer);
-  }, [targetDate]);
+  }, [isActive, isPaused, isCompleted, getRemainingTime]);
 
   // Получаем текущие цифры
+  const daysStr = currentTime.days.toString().padStart(2, '0');
   const hoursStr = currentTime.hours.toString().padStart(2, '0');
   const minutesStr = currentTime.minutes.toString().padStart(2, '0');
   const secondsStr = currentTime.seconds.toString().padStart(2, '0');
 
   const currentDigits = {
+    days1: daysStr[0],
+    days2: daysStr[1],
     hours1: hoursStr[0],
     hours2: hoursStr[1],
     minutes1: minutesStr[0],
     minutes2: minutesStr[1],
     seconds1: secondsStr[0],
-    seconds2: secondsStr[1],
-    ampm: currentTime.ampm
+    seconds2: secondsStr[1]
   };
 
   // Получаем предыдущие цифры
+  const prevDaysStr = prevTimeRef.current.days.toString().padStart(2, '0');
   const prevHoursStr = prevTimeRef.current.hours.toString().padStart(2, '0');
   const prevMinutesStr = prevTimeRef.current.minutes.toString().padStart(2, '0');
   const prevSecondsStr = prevTimeRef.current.seconds.toString().padStart(2, '0');
 
   const prevDigits = {
+    days1: prevDaysStr[0],
+    days2: prevDaysStr[1],
     hours1: prevHoursStr[0],
     hours2: prevHoursStr[1],
     minutes1: prevMinutesStr[0],
     minutes2: prevMinutesStr[1],
     seconds1: prevSecondsStr[0],
-    seconds2: prevSecondsStr[1],
-    ampm: prevTimeRef.current.ampm
+    seconds2: prevSecondsStr[1]
   };
 
   // Обновляем предыдущие значения после рендера
@@ -125,12 +128,8 @@ const CountdownReel = ({ targetDate }: CountdownReelProps) => {
     prevTimeRef.current = { ...currentTime };
   }, [currentTime]);
 
-  const ReelDigit = ({ digit, label, shouldAnimate = true }: { digit: string; label?: string; shouldAnimate?: boolean }) => (
-    <div className="flex flex-col items-center">
-      {label && (
-        <span className="text-xs text-white mb-1 font-medium">{label}</span>
-      )}
-             <div className="relative h-12 w-8 sm:h-16 sm:w-12 bg-gray-800 rounded-lg overflow-hidden shadow-lg border border-gray-700">
+  const ReelDigit = ({ digit, shouldAnimate = true }: { digit: string; shouldAnimate?: boolean }) => (
+    <div className="relative h-12 w-8 sm:h-16 sm:w-12 bg-gray-800 rounded-lg overflow-hidden shadow-lg border border-gray-700">
         {shouldAnimate ? (
           <AnimatePresence mode="wait">
             <motion.div
@@ -144,13 +143,13 @@ const CountdownReel = ({ targetDate }: CountdownReelProps) => {
                 damping: 25,
                 duration: 0.4
               }}
-                             className="absolute inset-0 flex items-center justify-center text-lg sm:text-2xl font-bold text-white"
+              className="absolute inset-0 flex items-center justify-center text-lg sm:text-2xl font-bold text-white"
             >
               {digit}
             </motion.div>
           </AnimatePresence>
         ) : (
-                     <div className="absolute inset-0 flex items-center justify-center text-lg sm:text-2xl font-bold text-white">
+          <div className="absolute inset-0 flex items-center justify-center text-lg sm:text-2xl font-bold text-white">
             {digit}
           </div>
         )}
@@ -160,110 +159,129 @@ const CountdownReel = ({ targetDate }: CountdownReelProps) => {
         <div className="absolute bottom-0 left-0 right-0 h-px bg-gray-600 opacity-50"></div>
         <div className="absolute top-1/2 left-0 right-0 h-px bg-gray-500 opacity-30 transform -translate-y-1/2"></div>
       </div>
-    </div>
   );
 
-     const Separator = ({ char }: { char: string }) => (
+  const Separator = ({ char }: { char: string }) => (
     <div className="flex items-end pb-2 sm:pb-4">
       <span className="text-lg sm:text-2xl font-bold text-white mx-0.5 sm:mx-1">{char}</span>
     </div>
   );
 
-     return (
+  // Определяем статус для отображения
+  const getStatusText = () => {
+    if (isCompleted) return "Sorteo Finalizado";
+    if (isPaused) return "Sorteo Pausado";
+    if (isActive) return lotteryName || "Sorteo Activo";
+    return "Esperando Sorteo";
+  };
+
+  const getSubText = () => {
+    if (isCompleted) return "Resultados disponibles";
+    if (isPaused) return "En pausa";
+    if (isActive) return "Tiempo restante";
+    return "El sorteo no ha comenzado";
+  };
+
+  return (
     <div 
       className="flex flex-col items-center space-y-3 py-4 bg-gradient-to-r from-gray-800 via-gray-700 to-gray-800 px-4 mx-2 mb-6 sm:px-8 sm:py-6 sm:space-y-4 sm:mx-4 sm:mb-8"
       style={{
         borderRadius: '50px'
       }}
     >
-             <div className="text-center">
-         <h3 className="text-base sm:text-lg font-semibold text-white mb-1">
-           Próximo Sorteo
-         </h3>
-         <p className="text-xs sm:text-sm text-gray-300">
-           Tiempo restante
-         </p>
-       </div>
+      <div className="text-center">
+        <h3 className="text-base sm:text-lg font-semibold text-white mb-1">
+          {getStatusText()}
+        </h3>
+        <p className="text-xs sm:text-sm text-gray-300">
+          {getSubText()}
+        </p>
+        {prizeAmount && isActive && (
+          <p className="text-xs sm:text-sm text-purple-400 font-semibold">
+            Premio: {prizeAmount}
+          </p>
+        )}
+      </div>
       
-             <div className="flex items-end space-x-1 sm:space-x-2">
+      <div className="flex items-end space-x-1 sm:space-x-2">
+        {/* Days - только показываем если больше 0 */}
+        {currentTime.days > 0 && (
+          <>
+            <div className="flex flex-col items-center">
+              <span className="text-xs text-white mb-1 font-medium">D</span>
+              <div className="flex space-x-1">
+                <ReelDigit 
+                  digit={currentDigits.days1} 
+                  shouldAnimate={currentDigits.days1 !== prevDigits.days1}
+                />
+                <ReelDigit 
+                  digit={currentDigits.days2} 
+                  shouldAnimate={currentDigits.days2 !== prevDigits.days2}
+                />
+              </div>
+            </div>
+            <Separator char=":" />
+          </>
+        )}
+        
         {/* Hours */}
-        <ReelDigit 
-          digit={currentDigits.hours1} 
-          label="H" 
-          shouldAnimate={currentDigits.hours1 !== prevDigits.hours1}
-        />
-        <ReelDigit 
-          digit={currentDigits.hours2} 
-          shouldAnimate={currentDigits.hours2 !== prevDigits.hours2}
-        />
+        <div className="flex flex-col items-center">
+          <span className="text-xs text-white mb-1 font-medium">H</span>
+          <div className="flex space-x-1">
+            <ReelDigit 
+              digit={currentDigits.hours1} 
+              shouldAnimate={currentDigits.hours1 !== prevDigits.hours1}
+            />
+            <ReelDigit 
+              digit={currentDigits.hours2} 
+              shouldAnimate={currentDigits.hours2 !== prevDigits.hours2}
+            />
+          </div>
+        </div>
         
         <Separator char=":" />
         
         {/* Minutes */}
-        <ReelDigit 
-          digit={currentDigits.minutes1} 
-          label="M" 
-          shouldAnimate={currentDigits.minutes1 !== prevDigits.minutes1}
-        />
-        <ReelDigit 
-          digit={currentDigits.minutes2} 
-          shouldAnimate={currentDigits.minutes2 !== prevDigits.minutes2}
-        />
+        <div className="flex flex-col items-center">
+          <span className="text-xs text-white mb-1 font-medium">M</span>
+          <div className="flex space-x-1">
+            <ReelDigit 
+              digit={currentDigits.minutes1} 
+              shouldAnimate={currentDigits.minutes1 !== prevDigits.minutes1}
+            />
+            <ReelDigit 
+              digit={currentDigits.minutes2} 
+              shouldAnimate={currentDigits.minutes2 !== prevDigits.minutes2}
+            />
+          </div>
+        </div>
         
         <Separator char=":" />
         
         {/* Seconds */}
-        <ReelDigit 
-          digit={currentDigits.seconds1} 
-          label="S" 
-          shouldAnimate={currentDigits.seconds1 !== prevDigits.seconds1}
-        />
-        <ReelDigit 
-          digit={currentDigits.seconds2} 
-          shouldAnimate={currentDigits.seconds2 !== prevDigits.seconds2}
-        />
-        
-                 {/* AM/PM */}
-         <div className="flex flex-col items-center ml-2 sm:ml-3">
-           <span className="text-xs text-white mb-1 font-medium">Period</span>
-           <div className="relative h-12 w-8 sm:h-16 sm:w-12 bg-purple-600 rounded-lg overflow-hidden shadow-lg">
-            {currentDigits.ampm !== prevDigits.ampm ? (
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={currentDigits.ampm}
-                  initial={{ y: 20, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  exit={{ y: -20, opacity: 0 }}
-                  transition={{ 
-                    type: "spring",
-                    stiffness: 300,
-                    damping: 25,
-                    duration: 0.4
-                  }}
-                                     className="absolute inset-0 flex items-center justify-center text-xs sm:text-sm font-bold text-white"
-                >
-                  {currentDigits.ampm}
-                </motion.div>
-              </AnimatePresence>
-            ) : (
-                             <div className="absolute inset-0 flex items-center justify-center text-xs sm:text-sm font-bold text-white">
-                {currentDigits.ampm}
-              </div>
-            )}
-            
-            {/* Decorative lines */}
-            <div className="absolute top-0 left-0 right-0 h-px bg-purple-400 opacity-50"></div>
-            <div className="absolute bottom-0 left-0 right-0 h-px bg-purple-400 opacity-50"></div>
-            <div className="absolute top-1/2 left-0 right-0 h-px bg-purple-300 opacity-30 transform -translate-y-1/2"></div>
+        <div className="flex flex-col items-center">
+          <span className="text-xs text-white mb-1 font-medium">S</span>
+          <div className="flex space-x-1">
+            <ReelDigit 
+              digit={currentDigits.seconds1} 
+              shouldAnimate={currentDigits.seconds1 !== prevDigits.seconds1}
+            />
+            <ReelDigit 
+              digit={currentDigits.seconds2} 
+              shouldAnimate={currentDigits.seconds2 !== prevDigits.seconds2}
+            />
           </div>
         </div>
       </div>
       
-             <div className="text-center">
-         <p className="text-xs sm:text-sm text-gray-300">
-           Cada sorteo a las 8:00 PM
-         </p>
-       </div>
+      <div className="text-center">
+        <p className="text-xs sm:text-sm text-gray-300">
+          {isActive 
+            ? "Sorteo en progreso" 
+            : "¡Prepárate para el gran sorteo!"
+          }
+        </p>
+      </div>
     </div>
   );
 };

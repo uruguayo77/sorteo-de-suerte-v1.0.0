@@ -35,6 +35,79 @@ CREATE INDEX IF NOT EXISTS idx_winners_number ON winners(number);
 CREATE INDEX IF NOT EXISTS idx_winners_claimed ON winners(claimed);
 CREATE INDEX IF NOT EXISTS idx_winners_created_at ON winners(created_at);
 
+-- 3. Создание таблицы lottery_history с номерами розыгрышей
+CREATE TABLE IF NOT EXISTS lottery_history (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  lottery_number SERIAL,
+  name TEXT NOT NULL,
+  prize_amount TEXT NOT NULL,
+  start_time TIMESTAMP WITH TIME ZONE NOT NULL,
+  end_time TIMESTAMP WITH TIME ZONE NOT NULL,
+  planned_duration_minutes INTEGER NOT NULL,
+  actual_duration_minutes INTEGER NOT NULL,
+  winner_number INTEGER,
+  status TEXT NOT NULL CHECK (status IN ('completed', 'cancelled', 'no_winner')),
+  total_participants INTEGER DEFAULT 0,
+  participant_numbers INTEGER[] DEFAULT '{}',
+  reason TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Индексы для таблицы lottery_history
+CREATE INDEX IF NOT EXISTS idx_lottery_history_number ON lottery_history(lottery_number);
+CREATE INDEX IF NOT EXISTS idx_lottery_history_status ON lottery_history(status);
+CREATE INDEX IF NOT EXISTS idx_lottery_history_created_at ON lottery_history(created_at);
+
+-- 4. Создание таблицы active_lottery с номерами розыгрышей
+CREATE TABLE IF NOT EXISTS active_lottery (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  lottery_number INTEGER NOT NULL,
+  name TEXT NOT NULL,
+  prize_amount TEXT NOT NULL,
+  start_time TIMESTAMP WITH TIME ZONE NOT NULL,
+  end_time TIMESTAMP WITH TIME ZONE NOT NULL,
+  duration_minutes INTEGER NOT NULL,
+  is_active BOOLEAN DEFAULT true,
+  is_paused BOOLEAN DEFAULT false,
+  is_completed BOOLEAN DEFAULT false,
+  winner_number INTEGER,
+  selected_numbers INTEGER[] DEFAULT '{}',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Индексы для таблицы active_lottery
+CREATE INDEX IF NOT EXISTS idx_active_lottery_number ON active_lottery(lottery_number);
+CREATE INDEX IF NOT EXISTS idx_active_lottery_active ON active_lottery(is_active);
+CREATE INDEX IF NOT EXISTS idx_active_lottery_created_at ON active_lottery(created_at);
+
+-- ОБНОВЛЕНИЕ СУЩЕСТВУЮЩИХ ТАБЛИЦ: Добавление поля lottery_number
+-- Выполните эти команды ТОЛЬКО если таблицы уже существуют без поля lottery_number
+
+-- Добавляем поле lottery_number в lottery_history (если не существует)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'lottery_history' AND column_name = 'lottery_number') THEN
+        ALTER TABLE lottery_history ADD COLUMN lottery_number SERIAL;
+        CREATE INDEX IF NOT EXISTS idx_lottery_history_number ON lottery_history(lottery_number);
+    END IF;
+END $$;
+
+-- Добавляем поле lottery_number в active_lottery (если не существует)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name = 'active_lottery' AND column_name = 'lottery_number') THEN
+        ALTER TABLE active_lottery ADD COLUMN lottery_number INTEGER;
+        -- Обновляем существующие записи
+        UPDATE active_lottery SET lottery_number = 1 WHERE lottery_number IS NULL;
+        ALTER TABLE active_lottery ALTER COLUMN lottery_number SET NOT NULL;
+        CREATE INDEX IF NOT EXISTS idx_active_lottery_number ON active_lottery(lottery_number);
+    END IF;
+END $$;
+
 -- 3. Функция для автоматического обновления updated_at
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$

@@ -9,13 +9,15 @@ import SuccessMessage from "@/components/SuccessMessage";
 import WinnerNotification from "@/components/WinnerNotification";
 import DrawStatus from "@/components/DrawStatus";
 import { useToast } from "@/hooks/use-toast";
-import { useWinners } from "@/hooks/use-supabase";
+import { useWinners, useReserveNumbersTemporarily } from "@/hooks/use-supabase";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
+import { useLotteryStore } from "@/lib/lotteryStore";
 import { testSupabaseConnection } from "@/lib/test-connection";
 import { useEffect } from "react";
 import { FlipWords } from "@/components/ui/flip-words";
 import CountdownReel from "@/components/ui/countdown-reel";
 import { Link } from "react-router-dom";
+import { ReservationTimer } from "@/components/ReservationTimer";
 
 type Step = 'number-selection' | 'payment-method' | 'payment-details' | 'payment-form' | 'success';
 type PaymentMethodType = 'pago-movil' | 'binance' | 'bybit' | null;
@@ -26,9 +28,22 @@ const Index = () => {
   const [selectedNumber, setSelectedNumber] = useState<number | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType>(null);
   const [showWinnerNotification, setShowWinnerNotification] = useState(false);
+  const [reservationId, setReservationId] = useState<string | null>(null);
+  const [isReserving, setIsReserving] = useState(false);
   const { toast } = useToast();
   const { data: winners } = useWinners();
   const { isAuthenticated } = useAdminAuth();
+  const reserveNumbers = useReserveNumbersTemporarily();
+  
+  // Добавляем состояние лотереи
+  const { 
+    showWinnerModal, 
+    winnerNumber, 
+    lotteryName, 
+    lotteryNumber, 
+    prizeAmount, 
+    closeWinnerModal 
+  } = useLotteryStore();
 
   // Тестируем подключение к Supabase при загрузке
   useEffect(() => {
@@ -49,7 +64,7 @@ const Index = () => {
     });
   };
 
-  const handleContinueToPayment = () => {
+  const handleContinueToPayment = async () => {
     if (selectedNumbers.length === 0) {
       toast({
         title: "Error",
@@ -58,7 +73,44 @@ const Index = () => {
       });
       return;
     }
-    setCurrentStep('payment-method');
+
+    // Временно блокируем числа на 15 минут
+    setIsReserving(true);
+    
+    try {
+      const result = await reserveNumbers.mutateAsync({
+        numbers: selectedNumbers,
+        userName: 'Usuario Temporal', // Будет обновлено при заполнении формы
+        userPhone: 'Temporal',
+        cedula: 'Temporal',
+        paymentMethod: 'temporal'
+      });
+
+      setReservationId(result.application_id);
+      
+      toast({
+        title: "¡Números Reservados!",
+        description: `Tienes 15 minutos para completar el pago de los números: ${selectedNumbers.join(', ')}`,
+        duration: 5000,
+      });
+
+      setCurrentStep('payment-method');
+    } catch (error: any) {
+      console.error('Failed to reserve numbers:', error);
+      
+      // Показываем более понятное сообщение об ошибке
+      const errorMessage = error.message?.includes('ocupados') 
+        ? error.message 
+        : 'No se pudieron reservar los números. Intenta de nuevo.';
+        
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsReserving(false);
+    }
   };
 
   const handlePaymentMethodSelect = (method: PaymentMethodType) => {
@@ -93,15 +145,57 @@ const Index = () => {
   };
 
   const handleBackToNumberSelection = () => {
+    // Блокируем навигацию назад если есть активная резервация
+    if (reservationId) {
+      toast({
+        title: "Navegación bloqueada",
+        description: "Debes cancelar o completar tu reservación actual antes de volver atrás",
+        variant: "destructive",
+      });
+      return;
+    }
     setCurrentStep('number-selection');
   };
 
   const handleBackToPaymentMethod = () => {
+    // Блокируем навигацию назад если есть активная резервация
+    if (reservationId) {
+      toast({
+        title: "Navegación bloqueada", 
+        description: "Debes cancelar o completar tu reservación actual antes de volver atrás",
+        variant: "destructive",
+      });
+      return;
+    }
     setCurrentStep('payment-method');
   };
 
   const handleBackToPaymentDetails = () => {
+    // Блокируем навигацию назад если есть активная резервация
+    if (reservationId) {
+      toast({
+        title: "Navegación bloqueada",
+        description: "Debes cancelar o completar tu reservación actual antes de volver atrás", 
+        variant: "destructive",
+      });
+      return;
+    }
     setCurrentStep('payment-details');
+  };
+
+  // Функция для обработки отмены резервации
+  const handleReservationCanceled = () => {
+    // Очищаем состояние резервации
+    setReservationId(null);
+    
+    // Автоматически возвращаемся на главный экран
+    setCurrentStep('number-selection');
+    
+    // Очищаем выбранные номера (по желанию)
+    setSelectedNumbers([]);
+    
+    // Сбрасываем метод оплаты
+    setPaymentMethod(null);
   };
 
   const renderStep = () => {
@@ -135,12 +229,14 @@ const Index = () => {
             </div>
 
             {/* Полукруглый белый разделитель */}
-            <div className="absolute top-[45vh] sm:top-[48vh] lg:top-[45vh] left-0 right-0 bottom-0 bg-white rounded-t-[60px] sm:rounded-t-[70px] lg:rounded-t-[80px] shadow-2xl">
-              <div className="relative h-full pt-6 sm:pt-8 px-4 pb-20 sm:pb-24 overflow-y-auto">
-                <NumberGrid
-                  selectedNumbers={selectedNumbers}
-                  onNumberSelect={handleNumberSelect}
-                />
+            <div className="absolute top-[45vh] sm:top-[48vh] lg:top-[45vh] left-0 right-0 bottom-0 bg-white rounded-t-[60px] sm:rounded-t-[70px] lg:rounded-t-[80px] shadow-2xl overflow-hidden">
+              <div className="relative h-full pt-6 sm:pt-8 px-4 pb-20 sm:pb-24 overflow-y-auto overflow-x-hidden">
+                <div className="max-w-none">
+                  <NumberGrid
+                    selectedNumbers={selectedNumbers}
+                    onNumberSelect={handleNumberSelect}
+                  />
+                </div>
               </div>
             </div>
 
@@ -167,8 +263,16 @@ const Index = () => {
                   size="lg" 
                   className="text-base sm:text-lg lg:text-xl px-8 sm:px-12 py-3 sm:py-4 font-semibold shadow-2xl w-full"
                   onClick={handleContinueToPayment}
+                  disabled={isReserving}
                 >
-                  Continuar
+                  {isReserving ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Reservando números...
+                    </>
+                  ) : (
+                    'Continuar'
+                  )}
                 </Button>
               </div>
             )}
@@ -185,6 +289,11 @@ const Index = () => {
             >
               ← Volver a Selección
             </Button>
+            <ReservationTimer 
+              reservationId={reservationId} 
+              selectedNumbers={selectedNumbers}
+              onCanceled={handleReservationCanceled}
+            />
             <PaymentMethod onMethodSelect={handlePaymentMethodSelect} />
           </div>
         );
@@ -199,6 +308,11 @@ const Index = () => {
             >
               ← Volver a Métodos
             </Button>
+            <ReservationTimer 
+              reservationId={reservationId} 
+              selectedNumbers={selectedNumbers}
+              onCanceled={handleReservationCanceled}
+            />
             <PaymentDetails 
               method={paymentMethod!} 
               onContinue={handleContinueToForm} 
@@ -220,6 +334,7 @@ const Index = () => {
               selectedNumbers={selectedNumbers}
               paymentMethod={paymentMethod!}
               onSubmit={handleFormSubmit}
+              reservationId={reservationId}
             />
           </div>
         );
@@ -256,7 +371,19 @@ const Index = () => {
         <WinnerNotification
           winningNumber={selectedNumber!}
           prize="$500 USD"
+          lotteryName="Reserva de Número"
           onClose={() => setShowWinnerNotification(false)}
+        />
+      )}
+
+      {/* Модальное окно победителя лотереи */}
+      {showWinnerModal && winnerNumber && (
+        <WinnerNotification
+          winningNumber={winnerNumber}
+          prize={prizeAmount}
+          lotteryName={lotteryName}
+          lotteryNumber={lotteryNumber}
+          onClose={closeWinnerModal}
         />
       )}
 

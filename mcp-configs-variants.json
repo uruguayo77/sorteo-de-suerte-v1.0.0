@@ -1,0 +1,52 @@
+{
+  "variant_1_official": {
+    "mcpServers": {
+      "supabase-official": {
+        "command": "npx",
+        "args": [
+          "@supabase/mcp-server-supabase@latest",
+          "--project-ref=yetjflxjxujdhemailxx",
+          "--read-only"
+        ],
+        "env": {
+          "SUPABASE_ACCESS_TOKEN": "sbp_0e51d7ffced0d731afe6a65999f77a3bddcc63d3"
+        }
+      }
+    }
+  },
+  
+  "variant_2_community": {
+    "mcpServers": {
+      "supabase-community": {
+        "command": "python",
+        "args": ["-m", "pip", "install", "supabase-mcp-server", "&&", "supabase-mcp-server"],
+        "env": {
+          "SUPABASE_PROJECT_REF": "yetjflxjxujdhemailxx",
+          "SUPABASE_DB_PASSWORD": "your-db-password",
+          "SUPABASE_REGION": "us-east-1",
+          "QUERY_API_KEY": "your-api-key-from-thequery.dev"
+        }
+      }
+    }
+  },
+  
+  "variant_3_smithery": {
+    "mcpServers": {
+      "supabase-smithery": {
+        "command": "npx",
+        "args": [
+          "-y",
+          "@smithery/cli@latest",
+          "run",
+          "@alexander-zuev/supabase-mcp-server"
+        ],
+        "env": {
+          "SUPABASE_PROJECT_REF": "yetjflxjxujdhemailxx",
+          "SUPABASE_DB_PASSWORD": "your-db-password",
+          "SUPABASE_REGION": "us-east-1",
+          "QUERY_API_KEY": "your-api-key-from-thequery.dev"
+        }
+      }
+    }
+  }
+} 

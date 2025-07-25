@@ -80,7 +80,7 @@ const DrawStatus = () => {
 
             <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 border border-green-500/30 rounded-xl p-4">
               <p className="text-green-300 font-semibold">
-                Premio: ${currentDraw.prize_amount} USD
+                Premio: {currentDraw.prize_description}
               </p>
             </div>
 
@@ -136,10 +136,10 @@ const DrawStatus = () => {
           <Clock className="w-8 h-8 mx-auto mb-3 text-blue-400" />
           
           <h3 className="text-lg font-bold text-blue-300 mb-2">
-            Próximo Sorteo
+            Esperando Sorteo
           </h3>
           
-          <div className="text-2xl font-mono font-bold text-white mb-2">
+          <div className="text-4xl font-mono font-bold text-white mb-3 tracking-wider">
             {localTimeRemaining || formatTimeRemaining(currentDraw.time_remaining || '')}
           </div>
           
@@ -147,8 +147,8 @@ const DrawStatus = () => {
             {currentDraw.draw_name}
           </p>
           
-          <div className="text-xs text-blue-300/70">
-            Premio: ${currentDraw.prize_amount} USD
+          <div className="text-sm text-blue-300/90 font-medium">
+            ¡El sorteo comenzará muy pronto!
           </div>
         </div>
       </motion.div>
