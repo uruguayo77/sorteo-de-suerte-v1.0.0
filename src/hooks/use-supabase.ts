@@ -946,5 +946,31 @@ export const useAutoFinishLottery = () => {
   });
 };
 
+// Хук для получения последнего завершенного розыгрыша с победителем
+export const useLastFinishedDraw = () => {
+  return useQuery({
+    queryKey: ['lastFinishedDraw'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('lottery_draws')
+        .select('*')
+        .eq('status', 'finished')
+        .not('winner_number', 'is', null)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .single()
+      
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching last finished draw:', error)
+        throw error
+      }
+      
+      return data || null
+    },
+    refetchInterval: 30000, // Проверяем каждые 30 секунд
+    staleTime: 0
+  })
+}
+
 // Экспорт хука для блокировки всех номеров (тестирование)
 export { useBlockAllNumbers } from './use-block-all-numbers';

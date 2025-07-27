@@ -23,7 +23,7 @@ import { FlipWords } from "@/components/ui/flip-words";
 import CountdownReel from "@/components/ui/countdown-reel";
 import { Link } from "react-router-dom";
 import { ReservationTimer } from "@/components/ReservationTimer";
-import { useActiveLotteryDraw } from "@/hooks/use-supabase";
+import { useActiveLotteryDraw, useLastFinishedDraw } from "@/hooks/use-supabase";
 import NavigationConfirmDialog from "@/components/NavigationConfirmDialog";
 import confetti from 'canvas-confetti';
 // import SocialLinks from "@/components/SocialLinks"; // Временно скрыто
@@ -63,23 +63,26 @@ const Index = () => {
     closeWinnerModal 
   } = useLotteryStore();
 
-  // Получаем активный розыгрыш
+  // Получаем активный розыгрыш и последний завершенный
   const { data: currentDraw } = useActiveLotteryDraw();
+  const { data: lastFinishedDraw } = useLastFinishedDraw();
 
-  // Запускаем конфетти когда появляется победитель
+  // Запускаем конфетти всегда когда показывается модальное окно с победителем
   useEffect(() => {
-    if (currentDraw?.status === 'finished' && currentDraw?.winner_number) {
-      // Зеленое конфетти с задержкой
-      setTimeout(() => {
-        confetti({
-          particleCount: 100,
-          spread: 70,
-          origin: { y: 0.6 },
-          colors: ['#22c55e', '#16a34a', '#15803d', '#10b981', '#34d399']
-        });
-      }, 300);
+    const showWinnerModal = ((currentDraw?.status === 'finished' && currentDraw?.winner_number) || 
+                            (!currentDraw && lastFinishedDraw?.winner_number)) &&
+                           (!currentDraw || currentDraw.status !== 'active');
+    
+    if (showWinnerModal) {
+      // Немедленное зеленое конфетти
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ['#22c55e', '#16a34a', '#15803d', '#10b981', '#34d399']
+      });
 
-      // Дополнительный взрыв через секунду
+      // Дополнительные взрывы с интервалами
       setTimeout(() => {
         confetti({
           particleCount: 150,
@@ -95,9 +98,19 @@ const Index = () => {
           origin: { x: 1 },
           colors: ['#22c55e', '#16a34a', '#15803d', '#10b981', '#34d399']
         });
-      }, 1000);
+      }, 800);
+
+      // Третья волна конфетти
+      setTimeout(() => {
+        confetti({
+          particleCount: 200,
+          spread: 80,
+          origin: { y: 0.7 },
+          colors: ['#22c55e', '#16a34a', '#15803d', '#10b981', '#34d399', '#6ee7b7']
+        });
+      }, 1600);
     }
-  }, [currentDraw?.status, currentDraw?.winner_number]);
+  }, [currentDraw?.status, currentDraw?.winner_number, lastFinishedDraw?.winner_number]);
 
   // Navigation control для управления браузерной навигацией
   const {
@@ -594,70 +607,118 @@ const Index = () => {
         drawName={currentDraw?.draw_name}
       />
 
-      {/* Overlay для неактивного лотереи или показа победителя */}
+            {/* Overlay для неактивного лотереи или показа победителя */}
       {(!currentDraw || currentDraw.status !== 'active') && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          {/* Проверяем, есть ли завершенный розыгрыш с победителем */}
-                     {currentDraw?.status === 'finished' && currentDraw?.winner_number ? (
-             // Модальное окно с победителем
-             <div className="bg-gradient-to-br from-yellow-50/95 via-orange-50/95 to-yellow-100/95 border-yellow-400 text-center rounded-xl p-8 shadow-2xl backdrop-blur-md border max-w-md mx-4 relative overflow-hidden">
-               {/* Декоративные элементы */}
-               <div className="absolute -top-4 -left-4 w-8 h-8 bg-yellow-300/50 rounded-full animate-ping"></div>
-               <div className="absolute -top-2 -right-6 w-6 h-6 bg-orange-400/50 rounded-full animate-ping" style={{ animationDelay: '0.5s' }}></div>
-               <div className="absolute -bottom-4 -left-6 w-6 h-6 bg-green-400/50 rounded-full animate-ping" style={{ animationDelay: '1s' }}></div>
-               <div className="absolute -bottom-2 -right-4 w-8 h-8 bg-yellow-400/50 rounded-full animate-ping" style={{ animationDelay: '1.5s' }}></div>
-               
-               <div className="relative z-10 space-y-6">
-                 {/* Иконка трофея с анимацией */}
-                 <div className="flex justify-center">
-                   <div className="bg-gradient-to-r from-yellow-400 to-yellow-600 rounded-full p-6 shadow-2xl transform hover:scale-110 transition-transform duration-300">
-                     <svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="animate-pulse">
-                       <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/>
-                       <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/>
-                       <path d="M4 22h16"/>
-                       <path d="m9 9 1.5-1.5L12 9l1.5-1.5L15 9"/>
-                       <path d="M6 9h12l-1 7H7L6 9Z"/>
-                     </svg>
-                   </div>
-                 </div>
-
-                 {/* Заголовок */}
-                 <div className="space-y-2">
-                   <h3 className="text-3xl font-bold text-yellow-800 animate-bounce">¡FELICITACIONES!</h3>
-                   <h4 className="text-lg font-semibold text-yellow-700 sorteo-title">{currentDraw.draw_name}</h4>
-                 </div>
-
-                 {/* Номер победителя с эффектом */}
-                 <div className="space-y-4">
-                   <p className="text-yellow-700 font-bold text-lg">El número ganador es:</p>
-                   <div className="relative">
-                     <div className="bg-gradient-to-r from-emerald-400 via-green-500 to-emerald-600 text-white text-7xl font-black rounded-2xl w-32 h-32 flex items-center justify-center mx-auto shadow-2xl transform hover:scale-105 transition-all duration-300 border-4 border-white">
-                       <span className="drop-shadow-lg">{currentDraw.winner_number}</span>
+          {/* Проверяем, есть ли завершенный розыгрыш с победителем (текущий или последний) */}
+                     {((currentDraw?.status === 'finished' && currentDraw?.winner_number) || 
+             (!currentDraw && lastFinishedDraw?.winner_number)) ? (
+             // Модальное окно с победителем в стиле DrawFinishedModal
+             <div className="relative max-w-md mx-4">
+               {/* Crystal glass эффект контейнер */}
+               <div className="shadow-2xl backdrop-blur-sm bg-green-50/95 border-green-300 rounded-xl overflow-hidden">
+                 <div className="p-8 text-center space-y-6">
+                   {/* Animated Icons */}
+                   <div className="flex justify-center">
+                     <div className="relative">
+                       <svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="animate-pulse">
+                         <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/>
+                         <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/>
+                         <path d="M4 22h16"/>
+                         <path d="m9 9 1.5-1.5L12 9l1.5-1.5L15 9"/>
+                         <path d="M6 9h12l-1 7H7L6 9Z"/>
+                       </svg>
+                       <div className="absolute -top-2 -right-2">
+                         <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="animate-spin">
+                           <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                         </svg>
+                       </div>
                      </div>
-                     {/* Shine effect */}
-                     <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent w-32 h-32 mx-auto rounded-2xl animate-pulse"></div>
                    </div>
-                 </div>
 
-                 {/* Mensaje principal */}
-                 <div className="bg-gradient-to-r from-yellow-100 to-orange-100 border-2 border-yellow-300 rounded-xl p-5 shadow-lg">
-                   <p className="text-yellow-800 font-medium leading-relaxed">
-                     🎊 <span className="font-bold text-lg">¡El sorteo ha finalizado exitosamente!</span> 🎊
-                     <br /><br />
-                     Si tienes este número, <span className="font-black text-xl text-orange-700">¡ERES EL GANADOR!</span>
-                     <br /><br />
-                     Te contactaremos muy pronto para entregarte tu premio.
-                   </p>
-                 </div>
+                   {/* Title */}
+                   <div className="space-y-2">
+                     <div className="text-sm px-3 py-1 bg-green-100 text-green-800 border border-green-300 rounded-full inline-block">
+                       ¡🎉 GANADOR ANUNCIADO! 🎉
+                     </div>
+                     
+                     <h2 className="text-2xl font-bold text-green-800 sorteo-title">
+                       {(currentDraw?.status === 'finished' ? currentDraw : lastFinishedDraw)?.draw_name}
+                     </h2>
+                   </div>
 
-                 {/* Anuncio de nuevo sorteo */}
-                 <div className="bg-gradient-to-r from-green-100 to-emerald-100 border-2 border-green-300 rounded-xl p-4 shadow-lg">
-                   <p className="text-green-800 font-bold">
-                     🎯 Un nuevo sorteo comenzará pronto
-                   </p>
-                   <p className="text-green-600 text-sm mt-1">
-                     Mantente atento para participar en la próxima oportunidad
-                   </p>
+                   {/* Winner Announcement */}
+                   <div className="space-y-6">
+                     <div className="space-y-4">
+                       <h3 className="text-2xl font-bold text-green-700">
+                         ¡FELICITACIONES!
+                       </h3>
+                       
+                       <div className="relative">
+                         <div className="bg-gradient-to-r from-green-400 via-green-500 to-green-600 text-white text-7xl font-black rounded-2xl w-32 h-32 flex items-center justify-center mx-auto shadow-2xl relative overflow-hidden">
+                           <span className="relative z-10 drop-shadow-lg">22</span>
+                           <div className="absolute inset-0 bg-gradient-to-t from-white/20 to-transparent animate-pulse"></div>
+                         </div>
+                         
+                         {/* Floating sparkles around number */}
+                         {[...Array(6)].map((_, i) => (
+                           <div
+                             key={i}
+                             className={`absolute animate-pulse ${
+                               i === 0 ? '-top-4 -left-4' :
+                               i === 1 ? '-top-4 -right-4' :
+                               i === 2 ? 'top-1/2 -left-6' :
+                               i === 3 ? 'top-1/2 -right-6' :
+                               i === 4 ? '-bottom-4 -left-4' :
+                               '-bottom-4 -right-4'
+                             }`}
+                           >
+                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                               <path d="M12 2l2.09 6.26L20 9.27l-5 4.87 1.18 6.88L12 17.77l-4.18 3.25L9 14.14 4 9.27l5.91-1.01L12 2z"/>
+                             </svg>
+                           </div>
+                         ))}
+                       </div>
+                       
+                       <div className="space-y-3">
+                         <div className="bg-gradient-to-r from-green-100 to-emerald-100 border border-green-300 rounded-xl p-4">
+                           <h4 className="text-xl font-bold text-green-800 mb-2">
+                             ¡El número ganador es 22!
+                           </h4>
+                           <p className="text-green-700 text-sm leading-relaxed">
+                             Si tienes este número, <span className="font-bold">¡ERES EL GANADOR!</span>
+                             <br />
+                             Te contactaremos muy pronto para entregarte tu premio.
+                             <br />
+                             <span className="font-semibold">¡Muchas felicitaciones! 🎊</span>
+                           </p>
+                         </div>
+                       </div>
+                     </div>
+
+                     {/* Anuncio de nuevo sorteo */}
+                     <div className="bg-gradient-to-r from-blue-100 to-indigo-100 border border-blue-300 rounded-xl p-4">
+                       <p className="text-blue-800 font-bold">
+                         🎯 Un nuevo sorteo comenzará pronto
+                       </p>
+                       <p className="text-blue-600 text-sm mt-1">
+                         Mantente atento para participar en la próxima oportunidad
+                       </p>
+                     </div>
+                   </div>
+
+                   {/* Decorative elements */}
+                   <div className="flex justify-center space-x-2 opacity-60">
+                     {[...Array(5)].map((_, i) => (
+                       <div
+                         key={i}
+                         className="w-2 h-2 rounded-full bg-green-400 animate-pulse"
+                         style={{ 
+                           animationDelay: `${i * 0.2}s`
+                         }}
+                       />
+                     ))}
+                   </div>
                  </div>
                </div>
              </div>
