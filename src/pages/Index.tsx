@@ -613,112 +613,110 @@ const Index = () => {
           {/* Проверяем, есть ли завершенный розыгрыш с победителем (текущий или последний) */}
                      {((currentDraw?.status === 'finished' && currentDraw?.winner_number) || 
              (!currentDraw && lastFinishedDraw?.winner_number)) ? (
-             // Модальное окно с победителем в стиле DrawFinishedModal
-             <div className="relative max-w-md mx-4">
-               {/* Crystal glass эффект контейнер */}
-               <div className="shadow-2xl backdrop-blur-sm bg-green-50/95 border-green-300 rounded-xl overflow-hidden">
-                 <div className="p-8 text-center space-y-6">
-                   {/* Animated Icons */}
-                   <div className="flex justify-center">
-                     <div className="relative">
-                       <svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="animate-pulse">
-                         <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/>
-                         <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/>
-                         <path d="M4 22h16"/>
-                         <path d="m9 9 1.5-1.5L12 9l1.5-1.5L15 9"/>
-                         <path d="M6 9h12l-1 7H7L6 9Z"/>
-                       </svg>
-                       <div className="absolute -top-2 -right-2">
-                         <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="animate-spin">
-                           <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                         </svg>
-                       </div>
-                     </div>
-                   </div>
+                           // Модальное окно с победителем в стиле DrawFinishedModal
+              <div className="relative max-w-sm mx-4">
+                {/* Crystal glass эффект контейнер */}
+                <div className="shadow-2xl backdrop-blur-sm bg-green-50/95 border-green-300 rounded-xl overflow-hidden">
+                  <div className="p-6 text-center space-y-4">
+                                       {/* Animated Icons */}
+                    <div className="flex justify-center">
+                      <div className="relative">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="animate-pulse">
+                          <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/>
+                          <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/>
+                          <path d="M4 22h16"/>
+                          <path d="m9 9 1.5-1.5L12 9l1.5-1.5L15 9"/>
+                          <path d="M6 9h12l-1 7H7L6 9Z"/>
+                        </svg>
+                        <div className="absolute -top-1 -right-1">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="animate-spin">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
 
-                   {/* Title */}
-                   <div className="space-y-2">
-                     <div className="text-sm px-3 py-1 bg-green-100 text-green-800 border border-green-300 rounded-full inline-block">
-                       ¡🎉 GANADOR ANUNCIADO! 🎉
-                     </div>
-                     
-                     <h2 className="text-2xl font-bold text-green-800 sorteo-title">
-                       {(currentDraw?.status === 'finished' ? currentDraw : lastFinishedDraw)?.draw_name}
-                     </h2>
-                   </div>
+                                       {/* Title */}
+                    <div className="space-y-2">
+                      <div className="text-xs px-3 py-1 bg-green-100 text-green-800 border border-green-300 rounded-full inline-block">
+                        ¡🎉 GANADOR ANUNCIADO! 🎉
+                      </div>
+                      
+                      <h2 className="text-xl font-bold text-green-800">
+                        {(currentDraw?.status === 'finished' ? currentDraw : lastFinishedDraw)?.draw_name}
+                      </h2>
+                    </div>
 
-                   {/* Winner Announcement */}
-                   <div className="space-y-6">
-                     <div className="space-y-4">
-                       <h3 className="text-2xl font-bold text-green-700">
-                         ¡FELICITACIONES!
-                       </h3>
+                                       {/* Winner Announcement */}
+                    <div className="space-y-4">
+                      <div className="space-y-3">
+                        <h3 className="text-xl font-bold text-green-700">
+                          ¡FELICITACIONES!
+                        </h3>
+                        
+                        <div className="relative">
+                          <div className="bg-gradient-to-r from-green-400 via-green-500 to-green-600 text-white text-5xl font-black rounded-xl w-24 h-24 flex items-center justify-center mx-auto shadow-xl relative overflow-hidden">
+                            <span className="relative z-10 drop-shadow-lg">22</span>
+                            <div className="absolute inset-0 bg-gradient-to-t from-white/20 to-transparent animate-pulse"></div>
+                          </div>
+                          
+                          {/* Floating sparkles around number */}
+                          {[...Array(4)].map((_, i) => (
+                            <div
+                              key={i}
+                              className={`absolute animate-pulse ${
+                                i === 0 ? '-top-2 -left-2' :
+                                i === 1 ? '-top-2 -right-2' :
+                                i === 2 ? '-bottom-2 -left-2' :
+                                '-bottom-2 -right-2'
+                              }`}
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M12 2l2.09 6.26L20 9.27l-5 4.87 1.18 6.88L12 17.77l-4.18 3.25L9 14.14 4 9.27l5.91-1.01L12 2z"/>
+                              </svg>
+                            </div>
+                          ))}
+                        </div>
                        
-                       <div className="relative">
-                         <div className="bg-gradient-to-r from-green-400 via-green-500 to-green-600 text-white text-7xl font-black rounded-2xl w-32 h-32 flex items-center justify-center mx-auto shadow-2xl relative overflow-hidden">
-                           <span className="relative z-10 drop-shadow-lg">22</span>
-                           <div className="absolute inset-0 bg-gradient-to-t from-white/20 to-transparent animate-pulse"></div>
-                         </div>
-                         
-                         {/* Floating sparkles around number */}
-                         {[...Array(6)].map((_, i) => (
-                           <div
-                             key={i}
-                             className={`absolute animate-pulse ${
-                               i === 0 ? '-top-4 -left-4' :
-                               i === 1 ? '-top-4 -right-4' :
-                               i === 2 ? 'top-1/2 -left-6' :
-                               i === 3 ? 'top-1/2 -right-6' :
-                               i === 4 ? '-bottom-4 -left-4' :
-                               '-bottom-4 -right-4'
-                             }`}
-                           >
-                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                               <path d="M12 2l2.09 6.26L20 9.27l-5 4.87 1.18 6.88L12 17.77l-4.18 3.25L9 14.14 4 9.27l5.91-1.01L12 2z"/>
-                             </svg>
-                           </div>
-                         ))}
-                       </div>
-                       
-                       <div className="space-y-3">
-                         <div className="bg-gradient-to-r from-green-100 to-emerald-100 border border-green-300 rounded-xl p-4">
-                           <h4 className="text-xl font-bold text-green-800 mb-2">
-                             ¡El número ganador es 22!
-                           </h4>
-                           <p className="text-green-700 text-sm leading-relaxed">
-                             Si tienes este número, <span className="font-bold">¡ERES EL GANADOR!</span>
-                             <br />
-                             Te contactaremos muy pronto para entregarte tu premio.
-                             <br />
-                             <span className="font-semibold">¡Muchas felicitaciones! 🎊</span>
-                           </p>
-                         </div>
-                       </div>
-                     </div>
+                                               <div className="space-y-2">
+                          <div className="bg-gradient-to-r from-green-100 to-emerald-100 border border-green-300 rounded-xl p-3">
+                            <h4 className="text-lg font-bold text-green-800 mb-1">
+                              ¡El número ganador es 22!
+                            </h4>
+                            <p className="text-green-700 text-xs leading-relaxed">
+                              Si tienes este número, <span className="font-bold">¡ERES EL GANADOR!</span>
+                              <br />
+                              Te contactaremos muy pronto para entregarte tu premio.
+                              <br />
+                              <span className="font-semibold">¡Muchas felicitaciones! 🎊</span>
+                            </p>
+                          </div>
+                        </div>
+                      </div>
 
-                     {/* Anuncio de nuevo sorteo */}
-                     <div className="bg-gradient-to-r from-blue-100 to-indigo-100 border border-blue-300 rounded-xl p-4">
-                       <p className="text-blue-800 font-bold">
-                         🎯 Un nuevo sorteo comenzará pronto
-                       </p>
-                       <p className="text-blue-600 text-sm mt-1">
-                         Mantente atento para participar en la próxima oportunidad
-                       </p>
-                     </div>
-                   </div>
+                      {/* Anuncio de nuevo sorteo */}
+                      <div className="bg-gradient-to-r from-blue-100 to-indigo-100 border border-blue-300 rounded-xl p-3">
+                        <p className="text-blue-800 font-bold text-sm">
+                          🎯 Un nuevo sorteo comenzará pronto
+                        </p>
+                        <p className="text-blue-600 text-xs mt-1">
+                          Mantente atento para participar en la próxima oportunidad
+                        </p>
+                      </div>
+                    </div>
 
-                   {/* Decorative elements */}
-                   <div className="flex justify-center space-x-2 opacity-60">
-                     {[...Array(5)].map((_, i) => (
-                       <div
-                         key={i}
-                         className="w-2 h-2 rounded-full bg-green-400 animate-pulse"
-                         style={{ 
-                           animationDelay: `${i * 0.2}s`
-                         }}
-                       />
-                     ))}
-                   </div>
+                                       {/* Decorative elements */}
+                    <div className="flex justify-center space-x-1 opacity-60">
+                      {[...Array(3)].map((_, i) => (
+                        <div
+                          key={i}
+                          className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"
+                          style={{ 
+                            animationDelay: `${i * 0.2}s`
+                          }}
+                        />
+                      ))}
+                    </div>
                  </div>
                </div>
              </div>
