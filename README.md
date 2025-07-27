@@ -1,6 +1,6 @@
-# 🎲 Sorteo de Suerte v.1.0.0
+# 🎲 Sorteo de Suerte - Radius Lottery v.1.0.0
 
-Una aplicación web moderna para sorteos de números con sistema de reservas y pagos integrados.
+Una aplicación web moderna para sorteos de números con sistema de reservas y pagos integrados. Desarrollado por Radius.
 
 ## ✨ Características
 
@@ -105,7 +105,7 @@ Este proyecto está bajo la Licencia MIT - ver el archivo [LICENSE](LICENSE) par
 
 ## 👥 Autores
 
-- **Tu Nombre** - *Desarrollo inicial* - [Tu GitHub](https://github.com/username)
+- **Radius Team** - *Desarrollo inicial* - Sistema de lotería digital moderno
 
 ## 🙏 Agradecimientos
 
