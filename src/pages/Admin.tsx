@@ -96,70 +96,60 @@ const Admin = () => {
   }
 
   // Фильтрация заявок по поиску и выбранному розыгрышу
-  const filteredGroupedApplications = groupedApplications?.filter(group => {
+  const filteredGroupedApplications = groupedApplications?.map(group => {
     // Фильтр по выбранному розыгрышу
     if (selectedDrawId && group.draw_id !== selectedDrawId) {
-      return false
+      return null
     }
     
     // Фильтр по поисковому запросу
+    let filteredApplications = group.applications
+    
     if (searchTerm && searchTerm.trim().length > 0) {
       const searchLower = searchTerm.toLowerCase().trim()
-      console.log('🔍 Поиск:', { searchTerm, searchLower, groupName: group.draw_name })
       
       // Проверяем название розыгрыша
       const matchesDrawName = group.draw_name?.toLowerCase().includes(searchLower) || false
       
-      // Проверяем заявки в группе
-      const matchesApplications = group.applications?.some(app => {
-        if (!app) return false
-        
-        const nameMatch = app.user_name?.toLowerCase().includes(searchLower) || false
-        const cedulaMatch = app.cedula?.toLowerCase().includes(searchLower) || false
-        const phoneMatch = app.user_phone?.includes(searchTerm) || false
-        const numbersMatch = app.numbers?.some(num => 
-          num?.toString().includes(searchTerm)
-        ) || false
-        
-        console.log('🔍 Проверка заявки:', {
-          userName: app.user_name,
-          cedula: app.cedula,
-          phone: app.user_phone,
-          numbers: app.numbers,
-          nameMatch,
-          cedulaMatch,
-          phoneMatch,
-          numbersMatch
-        })
-        
-        return nameMatch || cedulaMatch || phoneMatch || numbersMatch
-      }) || false
-      
-      const result = matchesDrawName || matchesApplications
-      console.log('🔍 Результат фильтрации группы:', { 
-        drawName: group.draw_name, 
-        matchesDrawName, 
-        matchesApplications, 
-        result,
-        applicationsCount: group.applications?.length
-      })
-      
-      return result
+      if (matchesDrawName) {
+        // Если название розыгрыша совпадает, показываем все заявки в этой группе
+        filteredApplications = group.applications
+      } else {
+        // Иначе фильтруем заявки по содержимому
+        filteredApplications = group.applications?.filter(app => {
+          if (!app) return false
+          
+          // Поиск по имени (регистронезависимый)
+          const nameMatch = app.user_name?.toLowerCase().includes(searchLower) || false
+          
+          // Поиск по cédula (точное совпадение или частичное)
+          const cedulaMatch = app.cedula?.toLowerCase().includes(searchLower) || false
+          
+          // Поиск по телефону (убираем пробелы и спецсимволы для лучшего поиска)
+          const cleanPhone = app.user_phone?.replace(/[\s\-\(\)]/g, '') || ''
+          const cleanSearchTerm = searchTerm.replace(/[\s\-\(\)]/g, '')
+          const phoneMatch = cleanPhone.includes(cleanSearchTerm) || false
+          
+          // Поиск по номерам лотереи
+          const numbersMatch = app.numbers?.some(num => 
+            num?.toString().includes(searchTerm)
+          ) || false
+          
+          return nameMatch || cedulaMatch || phoneMatch || numbersMatch
+        }) || []
+      }
     }
     
-    return true
-  })
-
-  // Логируем результаты фильтрации
-  console.log('🔍 Состояние поиска:', {
-    searchTerm,
-    selectedDrawId,
-    totalGroups: groupedApplications?.length,
-    filteredGroups: filteredGroupedApplications?.length,
-    isLoading: groupedLoading,
-    hasGroupedApplications: !!groupedApplications,
-    searchTermLength: searchTerm?.length || 0
-  })
+    // Возвращаем группу только если есть заявки после фильтрации
+    if (filteredApplications.length > 0) {
+      return {
+        ...group,
+        applications: filteredApplications
+      }
+    }
+    
+    return null
+  }).filter(Boolean) // Убираем null значения
 
   if (authLoading || applicationsLoading || groupedLoading) {
     return (
@@ -285,10 +275,9 @@ const Admin = () => {
                     <Search className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                     <input
                       type="text"
-                      placeholder="Buscar por nombre, cédula, teléfono, números..."
+                                             placeholder="Buscar por nombre, cédula, teléfono o números de lotería..."
                       value={searchTerm}
                       onChange={(e) => {
-                        console.log('🔍 Обновление поискового запроса:', e.target.value)
                         setSearchTerm(e.target.value)
                       }}
                       className="w-full pl-10 pr-4 py-3 bg-white/10 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
@@ -318,7 +307,6 @@ const Admin = () => {
                   {(searchTerm || selectedDrawId) && (
                     <button
                       onClick={() => {
-                        console.log('🔍 Limpiando filtros')
                         setSearchTerm('')
                         setSelectedDrawId(null)
                       }}
@@ -329,16 +317,22 @@ const Admin = () => {
                     </button>
                   )}
                   
-                  {/* Contador de resultados */}
-                  {groupedApplications && (
-                    <div className="text-gray-400 text-sm">
-                      {searchTerm || selectedDrawId ? (
-                        <>Mostrando {filteredGroupedApplications?.length || 0} de {groupedApplications.length} sorteos</>
-                      ) : (
-                        <>Total: {groupedApplications.length} sorteos</>
-                      )}
-                    </div>
-                  )}
+                                     {/* Contador de resultados */}
+                   {groupedApplications && (
+                     <div className="text-gray-400 text-sm">
+                       {searchTerm || selectedDrawId ? (
+                         <>
+                           Mostrando {filteredGroupedApplications?.reduce((total, group) => total + group.applications.length, 0) || 0} solicitudes 
+                           en {filteredGroupedApplications?.length || 0} sorteos
+                         </>
+                       ) : (
+                         <>
+                           Total: {groupedApplications.reduce((total, group) => total + group.applications.length, 0)} solicitudes 
+                           en {groupedApplications.length} sorteos
+                         </>
+                       )}
+                     </div>
+                   )}
                 </div>
               </div>
 
@@ -378,14 +372,19 @@ const Admin = () => {
                             </div>
                           </div>
                           
-                          <div className="text-right">
-                            <div className="text-2xl font-bold text-purple-400">
-                              {group.applications.length}
-                            </div>
-                            <div className="text-sm text-gray-300">
-                              {group.applications.length === 1 ? 'solicitud' : 'solicitudes'}
-                            </div>
-                          </div>
+                                                     <div className="text-right">
+                             <div className="text-2xl font-bold text-purple-400">
+                               {group.applications.length}
+                             </div>
+                             <div className="text-sm text-gray-300">
+                               {group.applications.length === 1 ? 'solicitud' : 'solicitudes'}
+                               {searchTerm && (
+                                 <div className="text-xs text-gray-400 mt-1">
+                                   encontradas
+                                 </div>
+                               )}
+                             </div>
+                           </div>
                         </div>
                         
                         {/* Información del ganador si existe */}
@@ -516,12 +515,12 @@ const Admin = () => {
                       <p className="text-gray-300 text-lg mb-2">
                         {searchTerm || selectedDrawId ? 'No se encontraron solicitudes' : 'No hay solicitudes'}
                       </p>
-                      <p className="text-gray-400 text-sm">
-                        {searchTerm || selectedDrawId 
-                          ? 'Intenta cambiar los filtros de búsqueda.'
-                          : 'Las solicitudes aparecerán aquí agrupadas por sorteo.'
-                        }
-                      </p>
+                                             <p className="text-gray-400 text-sm">
+                         {searchTerm || selectedDrawId 
+                           ? 'Intenta cambiar los filtros de búsqueda. Ejemplos: "Juan", "1234567890", "555-1234", "15"'
+                           : 'Las solicitudes aparecerán aquí agrupadas por sorteo.'
+                         }
+                       </p>
                     </div>
                   </div>
                 )}
