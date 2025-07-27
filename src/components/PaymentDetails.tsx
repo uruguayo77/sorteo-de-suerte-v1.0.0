@@ -36,9 +36,9 @@ const PaymentDetails = ({ method, selectedNumbers, onContinue }: PaymentDetailsP
     'pago-movil': {
       title: 'Pago Móvil',
       fields: [
-        { label: 'Banco', value: 'Banco de Venezuela' },
-        { label: 'Teléfono', value: '0424-1234567' },
-        { label: 'Cédula', value: 'V-12345678' },
+        { label: 'Banco', value: 'Bancamiga' },
+        { label: 'Teléfono', value: '0424-3579080' },
+        { label: 'Cédula', value: 'P-736524931' },
         { label: 'Monto', value: `${totalPriceBs} Bs` }
       ],
       instructions: 'Copia los datos bancarios, realiza la transferencia desde tu app bancaria por el monto exacto y sube el comprobante en el siguiente paso.'
