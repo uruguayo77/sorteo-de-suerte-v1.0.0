@@ -21,19 +21,20 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, onClose, conf
            />
 
           {/* Модальное окно */}
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              transition={{ 
-                duration: 0.4, 
-                type: "spring", 
-                stiffness: 300, 
-                damping: 30 
-                             }}
-               className="onboarding-modal relative w-full max-w-md sm:max-w-lg md:max-w-xl lg:max-w-2xl mx-auto"
-            >
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 min-h-screen">
+            <div className="w-full h-full flex items-center justify-center overflow-y-auto py-4">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                transition={{ 
+                  duration: 0.4, 
+                  type: "spring", 
+                  stiffness: 300, 
+                  damping: 30 
+                               }}
+                 className="onboarding-modal relative w-full max-w-md sm:max-w-lg md:max-w-xl lg:max-w-2xl xl:max-w-3xl mx-auto"
+              >
                              {/* Crystal Glass Container */}
                <div className="relative bg-white/10 backdrop-blur-2xl border border-white/20 rounded-3xl shadow-2xl overflow-hidden">
                  {/* Gradient overlay */}
@@ -46,9 +47,9 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, onClose, conf
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.2 }}
-                    className="text-center mb-4 sm:mb-6 md:mb-8 flex justify-center"
+                    className="text-center mb-3 sm:mb-4 md:mb-6 flex justify-center"
                   >
-                    <h2 className="sorteo-title text-center mb-2 text-xl sm:text-2xl md:text-3xl lg:text-4xl">
+                    <h2 className="sorteo-title text-center mb-2 text-lg sm:text-xl md:text-2xl lg:text-3xl">
                       {config.title}
                     </h2>
                   </motion.div>
@@ -58,7 +59,7 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, onClose, conf
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.3 }}
-                    className="mb-4 sm:mb-6 md:mb-8 flex justify-center items-center"
+                    className="mb-3 sm:mb-4 md:mb-6 flex justify-center items-center max-w-full overflow-hidden"
                   >
                     <MediaDisplay
                       mediaType={config.media_type}
@@ -73,9 +74,9 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, onClose, conf
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.4 }}
-                      className="text-center mb-6 sm:mb-8 md:mb-10 flex justify-center"
+                      className="text-center mb-4 sm:mb-6 md:mb-8 flex justify-center"
                     >
-                      <p className="text-gray-200 text-sm sm:text-base md:text-lg lg:text-xl leading-relaxed max-w-md">
+                      <p className="text-gray-200 text-sm sm:text-base md:text-lg leading-relaxed max-w-md px-2">
                         {config.description}
                       </p>
                     </motion.div>
@@ -86,11 +87,11 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, onClose, conf
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.5 }}
-                    className="text-center flex justify-center"
+                    className="text-center flex justify-center mt-4"
                   >
                     <Button
                       onClick={onClose}
-                      className="w-full sm:w-auto min-w-[200px] md:min-w-[250px] lg:min-w-[300px] bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold py-3 px-8 md:py-4 md:px-10 lg:py-5 lg:px-12 text-sm sm:text-base md:text-lg lg:text-xl rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+                      className="w-full sm:w-auto min-w-[200px] md:min-w-[250px] bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold py-3 px-6 md:py-4 md:px-8 text-sm sm:text-base md:text-lg rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
                     >
                       {config.button_text}
                     </Button>
@@ -103,6 +104,7 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, onClose, conf
               </div>
             </motion.div>
           </div>
+        </div>
         </>
       )}
     </AnimatePresence>

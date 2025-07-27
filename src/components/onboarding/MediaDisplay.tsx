@@ -18,12 +18,18 @@ const MediaDisplay: React.FC<MediaDisplayProps> = ({ mediaType, mediaUrl, title 
 
   if (mediaType === 'video') {
     return (
-      <div className="relative w-full media-container min-h-[200px] max-h-[50vh] flex justify-center items-center">
+      <div className="relative w-full media-container min-h-[200px] max-h-[50vh] flex justify-center items-center overflow-hidden">
         <video
           controls={isVideoPlaying}
           onPlay={() => setIsVideoPlaying(true)}
           onPause={() => setIsVideoPlaying(false)}
           className="max-w-full max-h-full object-contain rounded-xl"
+          style={{ 
+            maxWidth: '100%', 
+            maxHeight: '100%',
+            width: 'auto',
+            height: 'auto'
+          }}
         >
           <source src={mediaUrl} type="video/mp4" />
           <source src={mediaUrl} type="video/webm" />
@@ -52,12 +58,18 @@ const MediaDisplay: React.FC<MediaDisplayProps> = ({ mediaType, mediaUrl, title 
 
   // Для изображений
   return (
-    <div className="w-full media-container min-h-[200px] max-h-[50vh] flex justify-center items-center">
+    <div className="w-full media-container min-h-[200px] max-h-[50vh] flex justify-center items-center overflow-hidden">
       <img
         src={mediaUrl}
         alt={title}
         loading="lazy"
-        className="max-w-full max-h-full object-contain rounded-xl"
+        className="max-w-full max-h-full object-contain rounded-xl w-auto h-auto"
+        style={{ 
+          maxWidth: '100%', 
+          maxHeight: '100%',
+          width: 'auto',
+          height: 'auto'
+        }}
         onError={(e) => {
           const target = e.target as HTMLImageElement
           target.style.display = 'none'

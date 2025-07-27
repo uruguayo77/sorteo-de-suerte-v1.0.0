@@ -52,21 +52,33 @@
 /* Onboarding modal responsiveness */
 .onboarding-modal {
   max-width: 90vw;
-  max-height: 85vh;
+  max-height: none;
   width: 100%;
+  margin: auto;
+  position: relative;
 }
 
 @media (min-width: 640px) {
   .onboarding-modal {
     max-width: 500px;
-    max-height: 80vh;
   }
 }
 
 @media (min-width: 768px) {
   .onboarding-modal {
     max-width: 600px;
-    max-height: 75vh;
+  }
+}
+
+@media (min-width: 1024px) {
+  .onboarding-modal {
+    max-width: 700px;
+  }
+}
+
+@media (min-width: 1280px) {
+  .onboarding-modal {
+    max-width: 800px;
   }
 }
 
@@ -88,26 +100,58 @@
 }
 
 /* Media container for proper scaling */
+.media-container {
+  max-width: 100%;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
 .media-container img,
 .media-container video {
-  min-height: 200px;
-  max-height: 300px;
+  max-width: 100%;
+  max-height: 35vh;
+  width: auto;
+  height: auto;
   object-fit: contain;
 }
 
 @media (min-width: 640px) {
   .media-container img,
   .media-container video {
-    min-height: 250px;
-    max-height: 400px;
+    max-height: 40vh;
   }
 }
 
 @media (min-width: 768px) {
   .media-container img,
   .media-container video {
-    min-height: 300px;
-    max-height: 450px;
+    max-height: 45vh;
+  }
+}
+
+@media (min-width: 1024px) {
+  .media-container img,
+  .media-container video {
+    max-height: 40vh;
+    max-width: 600px;
+  }
+}
+
+@media (min-width: 1280px) {
+  .media-container img,
+  .media-container video {
+    max-height: 35vh;
+    max-width: 650px;
+  }
+}
+
+/* Дополнительные правила для правильного центрирования */
+@media (max-height: 700px) {
+  .media-container img,
+  .media-container video {
+    max-height: 25vh;
   }
 }
 

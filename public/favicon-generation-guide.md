@@ -1,7 +1,7 @@
 # Создание Favicon из логотипа Radius
 
 ## Исходный логотип
-URL: https://i.ibb.co/bR1HH6qN/Radius-20250727-140339-0000.png
+URL: https://i.ibb.co/7t7bB161/Radius-20250727-153032-0000.png
 
 ## Шаги создания favicon:
 1. Скачайте логотип по ссылке выше
