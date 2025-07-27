@@ -284,9 +284,61 @@ export const useBlockedNumbersForDraw = (drawId: string | null) => {
         return new Set()
       }
     },
-    enabled: !!drawId, // Только выполняем запрос если есть drawId
-    refetchInterval: 5000, // Уменьшил интервал до 5 секунд для более быстрого обновления
-    staleTime: 0, // Данные всегда считаются устаревшими для немедленного обновления
+    enabled: !!drawId,
+    refetchInterval: 5000, // Агрессивное обновление
+    staleTime: 0, // Всегда считаем данные устаревшими
+  })
+}
+
+// Хук для получения ТОЛЬКО approved номеров для определения завершения розыгрыша
+export const useApprovedNumbersForDraw = (drawId: string | null) => {
+  return useQuery({
+    queryKey: ['approvedNumbersForDraw', drawId],
+    queryFn: async () => {
+      if (!drawId) {
+        console.log('useApprovedNumbersForDraw: no drawId provided, returning empty set')
+        return new Set()
+      }
+      
+      console.log('useApprovedNumbersForDraw: fetching approved numbers for draw:', drawId)
+      
+      try {
+        // Получаем ТОЛЬКО APPROVED заявки для конкретного розыгрыша
+        const { data, error } = await supabase
+          .from('applications')
+          .select('numbers')
+          .eq('draw_id', drawId)
+          .eq('status', 'approved') // Только approved заявки
+        
+        console.log('useApprovedNumbersForDraw result:', { data, error, drawId })
+        
+        if (error) throw error
+        
+        // Конвертируем массивы номеров в единый Set
+        const approvedNumbers = new Set<number>()
+        
+        // Обрабатываем каждую заявку и добавляем все номера в Set
+        if (data) {
+          for (const application of data) {
+            if (application.numbers && Array.isArray(application.numbers)) {
+              for (const number of application.numbers) {
+                approvedNumbers.add(number)
+              }
+            }
+          }
+        }
+        
+        console.log(`Approved numbers for draw ${drawId}:`, Array.from(approvedNumbers))
+        return approvedNumbers
+      } catch (error) {
+        console.error('useApprovedNumbersForDraw error:', error)
+        // В случае ошибки возвращаем пустой набор
+        return new Set()
+      }
+    },
+    enabled: !!drawId,
+    refetchInterval: 5000, // Агрессивное обновление
+    staleTime: 0, // Всегда считаем данные устаревшими
   })
 }
 
@@ -824,30 +876,35 @@ export function useCancelTemporaryReservation() {
 export const useActiveLotteryStats = () => {
   const { data: activeDraw } = useActiveLotteryDraw();
   const { data: blockedNumbers } = useBlockedNumbersForDraw(activeDraw?.id || null);
+  const { data: approvedNumbers } = useApprovedNumbersForDraw(activeDraw?.id || null);
   const { data: maxNumbersSetting } = useLotterySetting('max_numbers');
   
   return useQuery({
-    queryKey: ['activeLotteryStats', blockedNumbers, maxNumbersSetting, activeDraw?.id],
+    queryKey: ['activeLotteryStats', blockedNumbers, approvedNumbers, maxNumbersSetting, activeDraw?.id],
     queryFn: async () => {
       // Получаем общее количество номеров
       const maxNumbers = maxNumbersSetting ? 
         parseInt(maxNumbersSetting.setting_value) : 100;
       
-      // Получаем количество заблокированных номеров для текущего розыгрыша
+      // Получаем количество заблокированных номеров для UI (pending + approved)
       const blockedCount = blockedNumbers ? blockedNumbers.size : 0;
       
-      // Вычисляем доступные номера
+      // Получаем количество проданных номеров для логики завершения (только approved)
+      const approvedCount = approvedNumbers ? approvedNumbers.size : 0;
+      
+      // Вычисляем доступные номера (на основе заблокированных)
       const availableCount = maxNumbers - blockedCount;
       
-      // Проверяем, все ли номера проданы
-      const allSold = availableCount === 0;
+      // Проверяем, все ли номера ПРОДАНЫ (только approved заявки)
+      const allSold = approvedCount === maxNumbers;
       
       return {
         totalNumbers: maxNumbers,
         blockedNumbers: blockedCount,
+        approvedNumbers: approvedCount,
         availableNumbers: availableCount,
-        allNumbersSold: allSold,
-        soldPercentage: Math.round((blockedCount / maxNumbers) * 100)
+        allNumbersSold: allSold, // Теперь базируется на approved, а не blocked
+        soldPercentage: Math.round((approvedCount / maxNumbers) * 100)
       };
     },
     enabled: !!maxNumbersSetting,

@@ -12,9 +12,10 @@ export const useDrawFinishedModal = () => {
     activeLottery?.winner_number
   );
 
-  // Определяем видимость модального окна
+  // ИСПРАВЛЕНО: Определяем видимость модального окна только для approved номеров
+  // Модальное окно показывается только когда ВСЕ номера проданы И оплачены (approved)
   const isVisible = Boolean(
-    stats?.allNumbersSold && 
+    stats?.allNumbersSold && // Теперь это базируется на approved номерах
     activeLottery?.status && 
     ['active', 'finished'].includes(activeLottery.status)
   );
@@ -41,6 +42,8 @@ export const useDrawFinishedModal = () => {
     hasWinner,
     shouldShowWinnerModal,
     allNumbersSold: stats?.allNumbersSold,
+    approvedNumbers: stats?.approvedNumbers,
+    blockedNumbers: stats?.blockedNumbers,
     lotteryStatus: activeLottery?.status,
     winnerNumber: activeLottery?.winner_number,
     hasShownFinishedModal
@@ -49,10 +52,6 @@ export const useDrawFinishedModal = () => {
   return {
     isVisible,
     hasWinner,
-    winnerNumber: activeLottery?.winner_number || undefined,
-    drawName: activeLottery?.draw_name || "Sorteo de Suerte",
-    // Дополнительные состояния для отладки
-    stats,
-    activeLottery
+    shouldShowWinnerModal
   };
 }; 

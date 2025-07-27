@@ -193,12 +193,12 @@ const DrawFinishedModal: React.FC<DrawFinishedModalProps> = ({
                   ) : (
                     <div className="space-y-4">
                       <h3 className="text-xl font-semibold text-green-700">
-                        ¡Todos los números vendidos!
+                        ¡Todos los números vendidos y pagados!
                       </h3>
                       <p className="text-green-600 text-sm leading-relaxed">
                         El sorteo ha finalizado exitosamente.
                         <br />
-                        Todos los números han sido vendidos.
+                        Todos los números han sido vendidos y los pagos confirmados.
                         <br />
                         Los ganadores serán anunciados muy pronto.
                         <br />

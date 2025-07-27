@@ -18,13 +18,13 @@ const ActiveLotteryStats = () => {
   const [winnerNumber, setWinnerNumber] = useState<string>('');
   const { toast } = useToast();
 
-  // Автозавершение когда все номера проданы
+  // Автозавершение когда все номера проданы (только approved заявки)
   useEffect(() => {
     if (stats?.allNumbersSold && activeLottery?.status === 'active') {
-      console.log('Все номера проданы! Требуется завершение розыгрыша.');
+      console.log('Все номера проданы и оплачены! Требуется завершение розыгрыша.');
       toast({
-        title: "¡Todos los números vendidos!",
-        description: "El sorteo está listo para finalizar. Selecciona el número ganador.",
+        title: "¡Todos los números vendidos y pagados!",
+        description: "Todos los números han sido vendidos y los pagos confirmados. El sorteo está listo para finalizar.",
         variant: "default",
       });
     }
@@ -114,22 +114,27 @@ const ActiveLotteryStats = () => {
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-300 shadow-lg hover:shadow-xl transition-all duration-300">
+        <Card className="bg-gradient-to-br from-emerald-50 to-emerald-100 border-emerald-300 shadow-lg hover:shadow-xl transition-all duration-300">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-purple-800">
+            <CardTitle className="text-sm font-medium text-emerald-800">
               Números Vendidos
             </CardTitle>
-            <div className="p-2 bg-purple-200 rounded-full">
-              <Users className="h-4 w-4 text-purple-700" />
+            <div className="p-2 bg-emerald-200 rounded-full">
+              <Users className="h-4 w-4 text-emerald-700" />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-purple-900 mb-1">
-              {stats.blockedNumbers}
+            <div className="text-3xl font-bold text-emerald-900 mb-1">
+              {stats.approvedNumbers}
             </div>
-            <p className="text-xs text-purple-700">
-              {stats.soldPercentage}% vendido
+            <p className="text-xs text-emerald-700">
+              {stats.soldPercentage}% confirmados
             </p>
+            {stats.blockedNumbers > stats.approvedNumbers && (
+              <p className="text-xs text-amber-600 mt-1">
+                +{stats.blockedNumbers - stats.approvedNumbers} reservados
+              </p>
+            )}
           </CardContent>
         </Card>
 
