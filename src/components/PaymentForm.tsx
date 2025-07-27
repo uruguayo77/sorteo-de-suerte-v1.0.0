@@ -3,7 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Upload, X, FileImage } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Upload, X, FileImage, ChevronDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useCreateApplication, useUploadPaymentProof, useCompleteTemporaryApplication } from "@/hooks/use-supabase";
 import type { CreateApplicationData } from "@/lib/supabase";
@@ -16,6 +17,7 @@ interface PaymentFormProps {
 }
 
 interface FormData {
+  documentType: string;
   cedula: string;
   nombre: string;
   apellido: string;
@@ -23,8 +25,67 @@ interface FormData {
   comprobante: File | null;
 }
 
+// Типы документов доступные в Venezuela
+const DOCUMENT_TYPES = [
+  { value: 'V', label: 'V - Venezolano' },
+  { value: 'E', label: 'E - Extranjero' },
+  { value: 'P', label: 'P - Pasaporte' },
+  { value: 'J', label: 'J - Jurídico' },
+  { value: 'G', label: 'G - Gobierno' },
+  { value: 'C', label: 'C - Cédula' },
+  { value: 'FP', label: 'FP - Firma Personal' }
+];
+
+// Функции валидации
+const validatePhone = (phone: string): boolean => {
+  // Формат: 0424-1234567 или 04241234567
+  const phoneRegex = /^0(4[0-9]{2}|2[0-9]{2})-?[0-9]{7}$/;
+  return phoneRegex.test(phone.replace(/\s/g, ''));
+};
+
+const validateDocument = (documentType: string, documentNumber: string): boolean => {
+  // Базовая валидация: от 6 до 10 цифр для большинства типов
+  const numberOnly = documentNumber.replace(/\D/g, '');
+  
+  switch (documentType) {
+    case 'V':
+    case 'E':
+      // Venezolano/Extranjero: 6-8 цифр
+      return numberOnly.length >= 6 && numberOnly.length <= 8;
+    case 'P':
+      // Pasaporte: 6-10 символов (может содержать буквы)
+      return documentNumber.length >= 6 && documentNumber.length <= 10;
+    case 'J':
+    case 'G':
+    case 'C':
+      // Jurídico/Gobierno/Cédula: 6-10 цифр
+      return numberOnly.length >= 6 && numberOnly.length <= 10;
+    case 'FP':
+      // Fuerzas Policiales: может варировать
+      return numberOnly.length >= 6 && numberOnly.length <= 12;
+    default:
+      return numberOnly.length >= 6;
+  }
+};
+
+const formatPhone = (phone: string): string => {
+  // Eliminar todo excepto números
+  const numbers = phone.replace(/\D/g, '');
+  
+  // Formatear como 0424-1234567
+  if (numbers.length >= 4) {
+    if (numbers.length <= 7) {
+      return `${numbers.slice(0, 4)}-${numbers.slice(4)}`;
+    } else {
+      return `${numbers.slice(0, 4)}-${numbers.slice(4, 11)}`;
+    }
+  }
+  return numbers;
+};
+
 const PaymentForm = ({ selectedNumbers, paymentMethod, onSubmit, reservationId }: PaymentFormProps) => {
   const [formData, setFormData] = useState<FormData>({
+    documentType: 'V', // Default to Venezolano
     cedula: '',
     nombre: '',
     apellido: '',
@@ -32,14 +93,83 @@ const PaymentForm = ({ selectedNumbers, paymentMethod, onSubmit, reservationId }
     comprobante: null
   });
   const [dragOver, setDragOver] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<{
+    telefono?: string;
+    cedula?: string;
+  }>({});
   const { toast } = useToast();
   const createApplication = useCreateApplication();
   const uploadPaymentProof = useUploadPaymentProof();
   const completeTemporaryApplication = useCompleteTemporaryApplication();
 
-
   const handleInputChange = (field: keyof FormData, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    let processedValue = value;
+    
+    // Специальная обработка для телефона
+    if (field === 'telefono') {
+      processedValue = formatPhone(value);
+      
+      // Валидация телефона
+      if (processedValue && !validatePhone(processedValue)) {
+        setValidationErrors(prev => ({
+          ...prev,
+          telefono: 'Formato incorrecto. Ejemplo: 0424-1234567'
+        }));
+      } else {
+        setValidationErrors(prev => ({
+          ...prev,
+          telefono: undefined
+        }));
+      }
+    }
+    
+    // Специальная обработка для документа
+    if (field === 'cedula') {
+      // Удаляем префикс типа документа если он есть
+      const cleanValue = value.replace(/^[A-Z]{1,2}-?/, '');
+      processedValue = cleanValue;
+      
+      // Валидация документа
+      if (processedValue && !validateDocument(formData.documentType, processedValue)) {
+        setValidationErrors(prev => ({
+          ...prev,
+          cedula: `Formato incorrecto para tipo ${formData.documentType}`
+        }));
+      } else {
+        setValidationErrors(prev => ({
+          ...prev,
+          cedula: undefined
+        }));
+      }
+    }
+    
+    setFormData(prev => ({ ...prev, [field]: processedValue }));
+  };
+
+  // Получить полный номер документа с префиксом
+  const getFullDocumentNumber = () => {
+    if (!formData.cedula) return '';
+    return `${formData.documentType}-${formData.cedula}`;
+  };
+
+  // Обработчик изменения типа документа
+  const handleDocumentTypeChange = (value: string) => {
+    setFormData(prev => ({ ...prev, documentType: value }));
+    
+    // Переvalidация документа с новым типом
+    if (formData.cedula) {
+      if (!validateDocument(value, formData.cedula)) {
+        setValidationErrors(prev => ({
+          ...prev,
+          cedula: `Formato incorrecto para tipo ${value}`
+        }));
+      } else {
+        setValidationErrors(prev => ({
+          ...prev,
+          cedula: undefined
+        }));
+      }
+    }
   };
 
   const handleFileSelect = (file: File) => {
@@ -77,7 +207,45 @@ const PaymentForm = ({ selectedNumbers, paymentMethod, onSubmit, reservationId }
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validación básica
+    // Проверка валидации
+    const hasValidationErrors = Object.values(validationErrors).some(error => error !== undefined);
+    if (hasValidationErrors) {
+      toast({
+        title: "Error de validación",
+        description: "Por favor corrige los errores en el formulario",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Валидация final
+    if (!validatePhone(formData.telefono)) {
+      setValidationErrors(prev => ({
+        ...prev,
+        telefono: 'Formato de teléfono incorrecto'
+      }));
+      toast({
+        title: "Error",
+        description: "El formato del teléfono es incorrecto",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!validateDocument(formData.documentType, formData.cedula)) {
+      setValidationErrors(prev => ({
+        ...prev,
+        cedula: `Formato incorrecto para tipo ${formData.documentType}`
+      }));
+      toast({
+        title: "Error",
+        description: "El formato del documento es incorrecto",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Validación básica de campos obligatorios
     if (!formData.cedula || !formData.nombre || !formData.apellido || !formData.telefono) {
       toast({
         title: "Error",
@@ -99,11 +267,12 @@ const PaymentForm = ({ selectedNumbers, paymentMethod, onSubmit, reservationId }
     try {
       // 1. Загружаем компробанте
       const paymentProofUrl = await uploadPaymentProof.mutateAsync(formData.comprobante);
+      console.log('Uploaded payment proof URL:', paymentProofUrl);
 
       const userData = {
         user_name: `${formData.nombre} ${formData.apellido}`,
         user_phone: formData.telefono,
-        cedula: formData.cedula,
+        cedula: getFullDocumentNumber(), // Используем полный номер документа с префиксом
         payment_method: paymentMethod!,
         payment_proof_url: paymentProofUrl
       };
@@ -134,7 +303,11 @@ const PaymentForm = ({ selectedNumbers, paymentMethod, onSubmit, reservationId }
         });
       }
       
-      onSubmit(formData);
+      // Вызываем callback с полным номером документа
+      onSubmit({
+        ...formData,
+        cedula: getFullDocumentNumber()
+      });
     } catch (error) {
       console.error('Error processing application:', error);
       toast({
@@ -157,19 +330,23 @@ const PaymentForm = ({ selectedNumbers, paymentMethod, onSubmit, reservationId }
       <div className="relative z-10 container mx-auto px-4 py-8">
         <div className="max-w-2xl mx-auto">
           <div className="text-center mb-8">
-            <h2 className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl font-bold bg-gradient-to-r from-purple-400 via-purple-500 to-purple-600 bg-clip-text text-transparent mb-4 px-2">
+            <h2 className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl font-bold bg-gradient-to-r from-purple-400 via-purple-500 to-purple-600 bg-clip-text text-transparent mb-6 px-2">
               Confirmar Datos de Pago
             </h2>
-            <p className="text-base sm:text-lg text-gray-300 px-2">
-              Números seleccionados:{" "}
-              <span className="font-bold text-purple-400">
-                {selectedNumbers.map((num, index) => (
-                  <span key={num}>
-                    #{num}{index < selectedNumbers.length - 1 ? ", " : ""}
+            
+            {/* Selected Numbers Display */}
+            <div className="space-y-3 px-2">
+              <p className="text-base sm:text-lg text-gray-300">
+                Números seleccionados:
+              </p>
+              <div className="flex flex-wrap gap-2 justify-center">
+                {selectedNumbers.map((num) => (
+                  <span key={num} className="inline-block bg-gradient-to-r from-purple-500/30 to-blue-500/30 text-purple-300 font-bold text-lg px-3 py-2 rounded-xl border border-purple-400/40 shadow-lg">
+                    {num}
                   </span>
                 ))}
-              </span>
-            </p>
+              </div>
+            </div>
           </div>
 
           <div className="bg-white/10 backdrop-blur-sm border border-gray-700 rounded-2xl p-4 sm:p-6">
@@ -179,26 +356,44 @@ const PaymentForm = ({ selectedNumbers, paymentMethod, onSubmit, reservationId }
             <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="cedula" className="text-gray-300 font-medium">Cédula *</Label>
-                  <Input
-                    id="cedula"
-                    placeholder="V-12345678"
-                    value={formData.cedula}
-                    onChange={(e) => handleInputChange('cedula', e.target.value)}
-                    required
-                    className="bg-white/5 border-gray-600 text-white placeholder:text-gray-400 focus:border-purple-500 focus:ring-purple-500/20"
-                  />
+                  <Label htmlFor="documentType" className="text-gray-300 font-medium">Tipo de Documento *</Label>
+                  <Select onValueChange={handleDocumentTypeChange} value={formData.documentType} required>
+                    <SelectTrigger className="bg-white/5 border-gray-600 text-white placeholder:text-gray-400 focus:border-purple-500 focus:ring-purple-500/20">
+                      <SelectValue placeholder="Selecciona un tipo de documento" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DOCUMENT_TYPES.map((type) => (
+                        <SelectItem key={type.value} value={type.value}>
+                          {type.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="telefono" className="text-gray-300 font-medium">Teléfono *</Label>
-                  <Input
-                    id="telefono"
-                    placeholder="0424-1234567"
-                    value={formData.telefono}
-                    onChange={(e) => handleInputChange('telefono', e.target.value)}
-                    required
-                    className="bg-white/5 border-gray-600 text-white placeholder:text-gray-400 focus:border-purple-500 focus:ring-purple-500/20"
-                  />
+                  <Label htmlFor="cedula" className="text-gray-300 font-medium">Número de Documento *</Label>
+                  <div className="relative">
+                    <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-300 font-medium z-10">
+                      {formData.documentType}-
+                    </div>
+                    <Input
+                      id="cedula"
+                      placeholder="12345678"
+                      value={formData.cedula}
+                      onChange={(e) => handleInputChange('cedula', e.target.value)}
+                      required
+                      className={`bg-white/5 border-gray-600 text-white placeholder:text-gray-400 focus:border-purple-500 focus:ring-purple-500/20 pl-12 ${
+                        validationErrors.cedula ? 'border-red-500' : ''
+                      }`}
+                      style={{ paddingLeft: `${(formData.documentType.length + 1) * 8 + 12}px` }}
+                    />
+                  </div>
+                  {validationErrors.cedula && (
+                    <p className="text-xs text-red-400 mt-1">{validationErrors.cedula}</p>
+                  )}
+                  <p className="text-xs text-gray-400 mt-1">
+                    Documento completo: <span className="text-purple-300 font-medium">{getFullDocumentNumber() || `${formData.documentType}-`}</span>
+                  </p>
                 </div>
               </div>
 
@@ -224,6 +419,28 @@ const PaymentForm = ({ selectedNumbers, paymentMethod, onSubmit, reservationId }
                     required
                     className="bg-white/5 border-gray-600 text-white placeholder:text-gray-400 focus:border-purple-500 focus:ring-purple-500/20"
                   />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="telefono" className="text-gray-300 font-medium">Teléfono *</Label>
+                  <Input
+                    id="telefono"
+                    placeholder="0424-1234567"
+                    value={formData.telefono}
+                    onChange={(e) => handleInputChange('telefono', e.target.value)}
+                    required
+                    className={`bg-white/5 border-gray-600 text-white placeholder:text-gray-400 focus:border-purple-500 focus:ring-purple-500/20 ${
+                      validationErrors.telefono ? 'border-red-500' : ''
+                    }`}
+                  />
+                  {validationErrors.telefono && (
+                    <p className="text-xs text-red-400 mt-1">{validationErrors.telefono}</p>
+                  )}
+                  <p className="text-xs text-gray-400 mt-1">
+                    Formato: 0424-1234567
+                  </p>
                 </div>
               </div>
 
@@ -287,7 +504,7 @@ const PaymentForm = ({ selectedNumbers, paymentMethod, onSubmit, reservationId }
                         htmlFor="file-upload"
                         className="inline-block mt-4 cursor-pointer"
                       >
-                        <Button type="button" variant="outline" asChild className="bg-white/10 border-gray-600 text-white hover:bg-white/20 hover:border-purple-500">
+                        <Button type="button" variant="outline" asChild className="bg-white/10 border-gray-600 text-white hover:bg-white/20 hover:border-purple-500 rounded-xl">
                           <span>Seleccionar Archivo</span>
                         </Button>
                       </Label>
@@ -299,7 +516,7 @@ const PaymentForm = ({ selectedNumbers, paymentMethod, onSubmit, reservationId }
               <Button 
                 type="submit" 
                 variant="gradient" 
-                className="w-full text-lg sm:text-xl py-4 sm:py-6 font-semibold shadow-xl hover:scale-105 transition-all duration-200"
+                className="w-full text-lg sm:text-xl py-4 sm:py-6 font-semibold shadow-xl hover:scale-105 transition-all duration-200 rounded-xl"
               >
                 Enviar Datos al Operador
               </Button>

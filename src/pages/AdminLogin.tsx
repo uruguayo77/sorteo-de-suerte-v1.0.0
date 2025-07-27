@@ -74,7 +74,7 @@ const AdminLogin = () => {
         className="fixed top-4 left-4 z-50"
       >
         <Button
-          className="bg-gray-800/90 hover:bg-gray-700 text-white border border-gray-600 rounded-full p-3 shadow-lg backdrop-blur-sm"
+          className="bg-gray-800/90 hover:bg-gray-700 text-white border border-gray-600 p-3 shadow-lg backdrop-blur-sm"
           size="sm"
         >
           <ArrowLeft className="w-5 h-5" />
@@ -127,7 +127,11 @@ const AdminLogin = () => {
                       type={showPassword ? 'text' : 'password'}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="pl-10 pr-10 bg-white/5 border-gray-600 text-white placeholder:text-gray-400 focus:border-purple-500 focus:ring-purple-500/20"
+                      className="pl-10 pr-10 bg-white/5 border-gray-600 text-white placeholder:text-gray-400 focus:border-purple-500 focus:ring-purple-500/20 [&::-ms-reveal]:hidden [&::-ms-clear]:hidden [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden [&::-webkit-search-cancel-button]:hidden [&::-webkit-credentials-auto-fill-button]:hidden"
+                      style={{
+                        WebkitAppearance: 'none',
+                        MozAppearance: 'textfield'
+                      }}
                       placeholder="••••••••"
                       required
                     />
@@ -148,7 +152,7 @@ const AdminLogin = () => {
                 <Button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full bg-purple-600 hover:bg-purple-700 text-white border-0 py-2 font-medium"
+                  className="w-full bg-purple-600 hover:bg-purple-700 text-white border-0 py-2 font-medium rounded-xl"
                 >
                   {isLoading ? (
                     <div className="flex items-center gap-2">

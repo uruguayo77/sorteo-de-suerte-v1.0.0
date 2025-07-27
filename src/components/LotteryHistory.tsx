@@ -169,7 +169,7 @@ const LotteryHistory: React.FC = () => {
                       </Badge>
                     </div>
                     
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
                       <div className="flex items-center gap-2 text-gray-300">
                         <Trophy className="w-4 h-4 text-purple-400" />
                         <span>Premio: {lottery.prizeAmount}</span>
@@ -212,7 +212,7 @@ const LotteryHistory: React.FC = () => {
                       
                       <div className="space-y-6">
                         {/* Estado y resultado */}
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <div>
                             <label className="text-sm font-medium text-gray-400">Estado</label>
                             <div className="flex items-center gap-2 mt-1">
@@ -251,7 +251,7 @@ const LotteryHistory: React.FC = () => {
                         )}
 
                         {/* Información de tiempo */}
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <div>
                             <label className="text-sm font-medium text-gray-400">Fecha de Inicio</label>
                             <p className="text-white mt-1">{formatDate(lottery.startTime)}</p>
@@ -271,7 +271,7 @@ const LotteryHistory: React.FC = () => {
                         </div>
 
                         {/* Participación */}
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <div>
                             <label className="text-sm font-medium text-gray-400">Total Participantes</label>
                             <p className="text-white mt-1 flex items-center gap-2">

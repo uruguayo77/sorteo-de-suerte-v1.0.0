@@ -63,24 +63,31 @@ export function ImageUpload({ value, onChange, label, className = "" }: ImageUpl
       
       <div className="relative">
         {value ? (
-          // Превью изображения
+          // Превью изображения - адаптивный контейнер
           <div className="relative group">
-            <img
-              src={value}
-              alt="Preview"
-              className="w-full h-32 object-cover rounded-lg border border-gray-600"
-            />
-            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
-              <Button
-                type="button"
-                variant="destructive"
-                size="sm"
-                onClick={handleRemove}
-                className="absolute top-2 right-2"
-                disabled={isUploading}
-              >
-                <X className="h-4 w-4" />
-              </Button>
+            <div className="relative w-full bg-gray-800/50 rounded-lg border border-gray-600 overflow-hidden">
+              <img
+                src={value}
+                alt="Preview"
+                className="w-full h-auto max-h-48 object-contain rounded-lg"
+                style={{ minHeight: '120px' }}
+                onError={(e) => {
+                  console.error('Error loading image:', e)
+                }}
+              />
+              {/* Overlay с кнопкой удаления */}
+              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleRemove}
+                  className="absolute top-2 right-2 bg-red-600 hover:bg-red-700"
+                  disabled={isUploading}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           </div>
         ) : (

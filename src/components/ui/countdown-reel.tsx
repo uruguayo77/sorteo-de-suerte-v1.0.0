@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLotteryStore } from "@/lib/lotteryStore";
+import { useActiveLotteryDraw } from "@/hooks/use-supabase";
 
 interface TimeDisplay {
   hours: string;
@@ -21,6 +22,9 @@ const CountdownReel = () => {
     endTime
   } = useLotteryStore();
 
+  // Получаем активный розыгрыш из базы данных
+  const { data: currentDraw } = useActiveLotteryDraw();
+
   const [currentTime, setCurrentTime] = useState({
     days: 0,
     hours: 0,
@@ -35,9 +39,49 @@ const CountdownReel = () => {
     seconds: 0
   });
 
+  // Проверяем, есть ли активный розыгрыш
+  const hasActiveDraw = (currentDraw && currentDraw.status === 'active') || isActive;
+
   useEffect(() => {
     const calculateTimeLeft = () => {
-      // Если нет активного розыгрыша, показываем 00:00:00:00
+      // Проверяем активный розыгрыш из базы данных
+      if (currentDraw && currentDraw.status === 'active' && currentDraw.end_date) {
+        const now = new Date();
+        const endDate = new Date(currentDraw.end_date);
+        const remainingMs = endDate.getTime() - now.getTime();
+        
+        if (remainingMs > 0) {
+          const totalSeconds = Math.floor(remainingMs / 1000);
+          const days = Math.floor(totalSeconds / (24 * 3600));
+          const hours = Math.floor((totalSeconds % (24 * 3600)) / 3600);
+          const minutes = Math.floor((totalSeconds % 3600) / 60);
+          const seconds = totalSeconds % 60;
+
+          setCurrentTime({
+            days,
+            hours,
+            minutes,
+            seconds
+          });
+        } else {
+          // Время истекло
+          setCurrentTime({
+            days: 0,
+            hours: 0,
+            minutes: 0,
+            seconds: 0
+          });
+        }
+        return;
+      }
+
+      // Если нет активного розыгрыша в БД, останавливаем таймер
+      if (!currentDraw || currentDraw.status !== 'active') {
+        // Не обновляем время - оставляем последнее значение или показываем -- 
+        return;
+      }
+
+      // Если нет активного розыгрыша в БД, используем Zustand store
       if (!isActive || isPaused || isCompleted) {
         setCurrentTime({
           days: 0,
@@ -84,16 +128,23 @@ const CountdownReel = () => {
     };
 
     calculateTimeLeft();
-    const timer = setInterval(calculateTimeLeft, 1000);
+    
+    // Только запускаем интервал если есть активный розыгрыш
+    let timer: NodeJS.Timeout | null = null;
+    if (hasActiveDraw) {
+      timer = setInterval(calculateTimeLeft, 1000);
+    }
 
-    return () => clearInterval(timer);
-  }, [isActive, isPaused, isCompleted, getRemainingTime]);
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [isActive, isPaused, isCompleted, getRemainingTime, currentDraw, completeLottery, hasActiveDraw]);
 
   // Получаем текущие цифры
-  const daysStr = currentTime.days.toString().padStart(2, '0');
-  const hoursStr = currentTime.hours.toString().padStart(2, '0');
-  const minutesStr = currentTime.minutes.toString().padStart(2, '0');
-  const secondsStr = currentTime.seconds.toString().padStart(2, '0');
+  const daysStr = hasActiveDraw ? currentTime.days.toString().padStart(2, '0') : '--';
+  const hoursStr = hasActiveDraw ? currentTime.hours.toString().padStart(2, '0') : '--';
+  const minutesStr = hasActiveDraw ? currentTime.minutes.toString().padStart(2, '0') : '--';
+  const secondsStr = hasActiveDraw ? currentTime.seconds.toString().padStart(2, '0') : '--';
 
   const currentDigits = {
     days1: daysStr[0],
@@ -167,43 +218,26 @@ const CountdownReel = () => {
     </div>
   );
 
-  // Определяем статус для отображения
-  const getStatusText = () => {
-    if (isCompleted) return "Sorteo Finalizado";
-    if (isPaused) return "Sorteo Pausado";
-    if (isActive) return lotteryName || "Sorteo Activo";
-    return "Esperando Sorteo";
-  };
-
-  const getSubText = () => {
-    if (isCompleted) return "Resultados disponibles";
-    if (isPaused) return "En pausa";
-    if (isActive) return "Tiempo restante";
-    return "El sorteo no ha comenzado";
-  };
-
   return (
     <div 
-      className="flex flex-col items-center space-y-3 py-4 bg-gradient-to-r from-gray-800 via-gray-700 to-gray-800 px-4 mx-2 mb-6 sm:px-8 sm:py-6 sm:space-y-4 sm:mx-4 sm:mb-8"
+      className="flex flex-col items-center space-y-4 py-6 bg-gradient-to-r from-gray-800 via-gray-700 to-gray-800 px-4 mx-2 mb-6 sm:px-8 sm:py-6 sm:space-y-4 sm:mx-4 sm:mb-8"
       style={{
-        borderRadius: '50px'
+        borderRadius: '30px'
       }}
     >
       <div className="text-center">
         <h3 className="text-base sm:text-lg font-semibold text-white mb-1">
-          {getStatusText()}
+          {hasActiveDraw ? "Tiempo restante" : "Esperando Sorteo"}
         </h3>
         <p className="text-xs sm:text-sm text-gray-300">
-          {getSubText()}
+          {hasActiveDraw 
+            ? "Sorteo en progreso" 
+            : "El sorteo no ha comenzado"
+          }
         </p>
-        {prizeAmount && isActive && (
-          <p className="text-xs sm:text-sm text-purple-400 font-semibold">
-            Premio: {prizeAmount}
-          </p>
-        )}
       </div>
       
-      <div className="flex items-end space-x-1 sm:space-x-2">
+      <div className="flex items-end space-x-2 sm:space-x-2">
         {/* Days - только показываем если больше 0 */}
         {currentTime.days > 0 && (
           <>
@@ -272,15 +306,6 @@ const CountdownReel = () => {
             />
           </div>
         </div>
-      </div>
-      
-      <div className="text-center">
-        <p className="text-xs sm:text-sm text-gray-300">
-          {isActive 
-            ? "Sorteo en progreso" 
-            : "¡Prepárate para el gran sorteo!"
-          }
-        </p>
       </div>
     </div>
   );

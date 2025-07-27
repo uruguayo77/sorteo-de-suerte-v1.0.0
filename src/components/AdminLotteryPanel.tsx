@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -28,15 +28,24 @@ import { toast } from 'sonner'
 import { 
   useLotteryDraws, 
   useCreateLotteryDraw, 
-  useUpdateLotteryDraw
+  useUpdateLotteryDraw,
+  useDeleteLotteryDraw
 } from '@/hooks/use-supabase'
 import { useDrawCountdown, formatCountdown } from '@/hooks/use-scheduled-draws'
 import { useAutoUpdateCurrency, useCurrencyInfo, usePriceCalculator } from '@/hooks/use-currency'
 import { MigrationStatus } from '@/components/ui/migration-status'
+import ActiveLotteryStats from '@/components/ActiveLotteryStats'
 import { 
   LotteryDraw, 
   CreateLotteryDrawData
 } from '@/lib/supabase'
+import {
+  formatDateTimeLocal,
+  calculateDurationMinutes,
+  addMinutesToDate,
+  formatDuration,
+  validateEndTime
+} from '@/lib/utils'
 import { 
   Plus, 
   Trophy, 
@@ -50,11 +59,13 @@ import {
   X,
   Search,
   Filter,
-  RotateCcw
+  RotateCcw,
+  Trash2
 } from 'lucide-react'
 
 export function AdminLotteryPanel() {
   const [isCreateDrawOpen, setIsCreateDrawOpen] = useState(false)
+  const [isEditDrawOpen, setIsEditDrawOpen] = useState(false)
   const [selectedDraw, setSelectedDraw] = useState<LotteryDraw | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
@@ -64,26 +75,53 @@ export function AdminLotteryPanel() {
   
   const [newDraw, setNewDraw] = useState<CreateLotteryDrawData>({
     draw_name: '',
-    draw_date: '',
+    end_date: '',
+    duration_minutes: 60, // Por defecto 1 hora
     prize_description: '',
     prize_image_1: '',
     prize_image_2: '',
     prize_image_3: '',
-    // scheduled_start_time: '', // Временно отключено
+    // scheduled_start_time: '', // Temporalmente deshabilitado
     number_price_usd: 1.00,
     number_price_bs: 162.95
-    // created_by убрано - будет автоматически назначено в БД
+    // created_by removido - se asignará automáticamente en la BD
+  })
+
+  const [editDraw, setEditDraw] = useState<CreateLotteryDrawData>({
+    draw_name: '',
+    end_date: '',
+    duration_minutes: 60, // Por defecto 1 hora
+    prize_description: '',
+    prize_image_1: '',
+    prize_image_2: '',
+    prize_image_3: '',
+    number_price_usd: 1.00,
+    number_price_bs: 162.95
   })
   
   const [enableDelayedStart, setEnableDelayedStart] = useState(false)
   const [primaryCurrency, setPrimaryCurrency] = useState<'USD' | 'VES'>('USD')
 
-  // Хуки для работы с валютами
-  useAutoUpdateCurrency() // Автоматическое обновление курса
+  // Opciones predefinidas de duración
+  const quickDurationOptions = [
+    { label: '1 hora', minutes: 60, category: 'hours' },
+    { label: '2 horas', minutes: 120, category: 'hours' },
+    { label: '6 horas', minutes: 360, category: 'hours' },
+    { label: '12 horas', minutes: 720, category: 'hours' },
+    { label: '1 día', minutes: 1440, category: 'days' },
+    { label: '2 días', minutes: 2880, category: 'days' },
+    { label: '3 días', minutes: 4320, category: 'days' },
+    { label: '1 semana', minutes: 10080, category: 'weeks' },
+    { label: '2 semanas', minutes: 20160, category: 'weeks' },
+    { label: '1 mes', minutes: 43200, category: 'months' }
+  ]
+
+  // Hooks para trabajar con monedas
+  useAutoUpdateCurrency() // Actualización automática de tipo de cambio
   const { rateDisplay, currentRate, isStale } = useCurrencyInfo()
   const { calculatePrices, formatPrices } = usePriceCalculator()
 
-  // Обновляем цены при изменении курса или базовой цены
+  // Actualizar precios al cambiar el tipo de cambio o precio base
   const updatePrices = (value: number, currency: 'USD' | 'VES') => {
     if (!currentRate) return
 
@@ -96,9 +134,151 @@ export function AdminLotteryPanel() {
     }))
   }
 
-  // Компонент для отображения таймера обратного отсчета
+  // Función para actualizar la fecha de finalización basada en duración desde ahora
+  const updateEndDateFromDuration = (durationMinutes: number) => {
+    if (!durationMinutes) return
+
+    const now = new Date()
+    const endDate = addMinutesToDate(now, durationMinutes)
+    setNewDraw(prev => ({
+      ...prev,
+      end_date: formatDateTimeLocal(endDate)
+    }))
+  }
+
+  // Función para actualizar la duración basada en fecha de finalización desde ahora
+  const updateDurationFromDates = (endDate: string) => {
+    if (!endDate) return
+
+    const now = new Date()
+    if (!validateEndTime(now, endDate)) {
+      toast.error('La fecha de finalización debe ser mayor que la fecha actual')
+      return
+    }
+
+    const duration = calculateDurationMinutes(now, endDate)
+    setNewDraw(prev => ({
+      ...prev,
+      duration_minutes: duration
+    }))
+  }
+
+  // Manejador de cambio de fecha de finalización en formulario de creación
+  const handleEndDateChange = (newEndDate: string) => {
+    setNewDraw(prev => ({
+      ...prev,
+      end_date: newEndDate
+    }))
+
+    // Actualizar automáticamente la duración desde ahora
+    if (newEndDate) {
+      updateDurationFromDates(newEndDate)
+    }
+  }
+
+  // Manejador de cambio de duración en formulario de creación
+  const handleDurationChange = (newDuration: number) => {
+    setNewDraw(prev => ({
+      ...prev,
+      duration_minutes: newDuration
+    }))
+
+    // Actualizar automáticamente la fecha de fin desde ahora
+    if (newDuration > 0) {
+      updateEndDateFromDuration(newDuration)
+    }
+  }
+
+  // Selección rápida de duración para formulario de creación
+  const handleQuickDurationSelect = (minutes: number) => {
+    handleDurationChange(minutes)
+  }
+
+  // Funciones similares para formulario de edición
+  const updateEditEndDateFromDuration = (startDate: string, durationMinutes: number) => {
+    if (!startDate || !durationMinutes) return
+
+    const endDate = addMinutesToDate(startDate, durationMinutes)
+    setEditDraw(prev => ({
+      ...prev,
+      end_date: formatDateTimeLocal(endDate)
+    }))
+  }
+
+  const updateEditDurationFromDates = (startDate: string, endDate: string) => {
+    if (!startDate || !endDate) return
+
+    if (!validateEndTime(startDate, endDate)) {
+      toast.error('La fecha de finalización debe ser mayor que la fecha de inicio')
+      return
+    }
+
+    const duration = calculateDurationMinutes(startDate, endDate)
+    setEditDraw(prev => ({
+      ...prev,
+      duration_minutes: duration
+    }))
+  }
+
+  const handleEditEndDateChange = (newEndDate: string) => {
+    setEditDraw(prev => ({
+      ...prev,
+      end_date: newEndDate
+    }))
+
+    if (editDraw.draw_date && newEndDate) {
+      updateEditDurationFromDates(editDraw.draw_date, newEndDate)
+    }
+  }
+
+  const handleEditDurationChange = (newDuration: number) => {
+    setEditDraw(prev => ({
+      ...prev,
+      duration_minutes: newDuration
+    }))
+
+    if (editDraw.draw_date && newDuration > 0) {
+      updateEditEndDateFromDuration(editDraw.draw_date, newDuration)
+    }
+  }
+
+  // Selección rápida de duración para formulario de edición
+  const handleEditQuickDurationSelect = (minutes: number) => {
+    handleEditDurationChange(minutes)
+  }
+
+  // Efecto para sincronización automática de precios al cambiar el tipo de cambio
+  useEffect(() => {
+    if (currentRate && newDraw.number_price_usd) {
+      // Siempre recalcular bolívares basándose en USD y tipo de cambio actual
+      const calculatedBs = newDraw.number_price_usd * currentRate
+      if (Math.abs(calculatedBs - (newDraw.number_price_bs || 0)) > 0.01) {
+        setNewDraw(prev => ({
+          ...prev,
+          number_price_bs: Math.round(calculatedBs * 100) / 100,
+          usd_to_bs_rate: currentRate
+        }))
+      }
+    }
+  }, [currentRate, newDraw.number_price_usd])
+
+  // Efecto para sincronización automática de precios en formulario de edición
+  useEffect(() => {
+    if (currentRate && editDraw.number_price_usd && isEditDrawOpen) {
+      const calculatedBs = editDraw.number_price_usd * currentRate
+      if (Math.abs(calculatedBs - (editDraw.number_price_bs || 0)) > 0.01) {
+        setEditDraw(prev => ({
+          ...prev,
+          number_price_bs: Math.round(calculatedBs * 100) / 100,
+          usd_to_bs_rate: currentRate
+        }))
+      }
+    }
+  }, [currentRate, editDraw.number_price_usd, isEditDrawOpen])
+
+  // Componente para mostrar el temporizador de cuenta regresiva
   const DrawCountdownTimer = ({ draw }: { draw: LotteryDraw }) => {
-    // Временно отключено - требует миграции add_scheduled_start_time.sql
+    // Temporalmente deshabilitado - requiere migración add_scheduled_start_time.sql
     return null
     
     // const countdown = useDrawCountdown(draw.scheduled_start_time)
@@ -126,12 +306,110 @@ export function AdminLotteryPanel() {
     // )
   }
 
-  // Реальные хуки для данных
+  // Hooks reales para datos
   const { data: allDraws, isLoading, error } = useLotteryDraws()
   const createDrawMutation = useCreateLotteryDraw()
   const updateDrawMutation = useUpdateLotteryDraw()
+  const deleteDrawMutation = useDeleteLotteryDraw()
 
-  // Фильтрация активных и завершенных розыгрышей
+  // Función para eliminar sorteo
+  const handleDeleteDraw = async (draw: LotteryDraw) => {
+    // Confirmación de eliminación
+    if (!confirm(`¿Estás seguro de que quieres eliminar el sorteo "${draw.draw_name}"?\n\nEsta acción no se puede deshacer.`)) {
+      return
+    }
+
+    try {
+      await deleteDrawMutation.mutateAsync(draw.id)
+      toast.success('Sorteo eliminado exitosamente')
+    } catch (error) {
+      console.error('Error deleting draw:', error)
+      toast.error('Error al eliminar el sorteo')
+    }
+  }
+
+  // Función para abrir diálogo de edición
+  const handleEditDraw = (draw: LotteryDraw) => {
+    // Formatear fecha para input[type="datetime-local"] considerando hora local
+    const date = new Date(draw.draw_date)
+    // Obtener hora local considerando zona horaria
+    const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+    const formattedDate = localDate.toISOString().slice(0, 16)
+    
+    // Formatear fecha de finalización, si existe
+    let formattedEndDate = ''
+    if (draw.end_date) {
+      const endDate = new Date(draw.end_date)
+      const localEndDate = new Date(endDate.getTime() - endDate.getTimezoneOffset() * 60000)
+      formattedEndDate = localEndDate.toISOString().slice(0, 16)
+    }
+    
+    setEditDraw({
+      draw_name: draw.draw_name,
+      draw_date: formattedDate,
+      end_date: formattedEndDate,
+      duration_minutes: draw.duration_minutes || 60,
+      prize_description: draw.prize_description,
+      prize_image_1: draw.prize_image_1 || '',
+      prize_image_2: draw.prize_image_2 || '',
+      prize_image_3: draw.prize_image_3 || '',
+      number_price_usd: draw.number_price_usd,
+      number_price_bs: draw.number_price_bs,
+      usd_to_bs_rate: draw.usd_to_bs_rate
+    })
+    
+    setSelectedDraw(draw)
+    setIsEditDrawOpen(true)
+  }
+
+  // Función para actualizar precios en formulario de edición
+  const updateEditPrices = (value: number, currency: 'USD' | 'VES') => {
+    if (!currentRate) return
+
+    const prices = calculatePrices(value, currency)
+    setEditDraw(prev => ({
+      ...prev,
+      number_price_usd: prices.usd,
+      number_price_bs: prices.bs,
+      usd_to_bs_rate: currentRate
+    }))
+  }
+
+  // Función para guardar cambios
+  const handleUpdateDraw = async () => {
+    if (!selectedDraw) return
+
+    try {
+      // Preparar datos para actualización
+      const updateData = {
+        draw_name: editDraw.draw_name,
+        draw_date: editDraw.draw_date,
+        end_date: editDraw.end_date || null,
+        duration_minutes: editDraw.duration_minutes || null,
+        prize_description: editDraw.prize_description,
+        prize_image_1: editDraw.prize_image_1 || null,
+        prize_image_2: editDraw.prize_image_2 || null,
+        prize_image_3: editDraw.prize_image_3 || null,
+        number_price_usd: editDraw.number_price_usd,
+        number_price_bs: editDraw.number_price_bs,
+        usd_to_bs_rate: editDraw.usd_to_bs_rate || currentRate
+      }
+
+      await updateDrawMutation.mutateAsync({
+        drawId: selectedDraw.id,
+        updateData
+      })
+
+      toast.success('Sorteo actualizado exitosamente')
+      setIsEditDrawOpen(false)
+      setSelectedDraw(null)
+    } catch (error) {
+      console.error('Error updating draw:', error)
+      toast.error('Error al actualizar el sorteo')
+    }
+  }
+
+  // Filtración de sorteos activos y completados
   const activeDraws = allDraws?.filter(draw => 
     draw.status === 'scheduled' || draw.status === 'active'
   ) || []
@@ -140,7 +418,7 @@ export function AdminLotteryPanel() {
     draw.status === 'finished' || draw.status === 'cancelled'
   ) || []
 
-  // Фильтрация для истории с поиском
+  // Filtración para historial con búsqueda
   const filteredHistory = completedDraws.filter(draw => {
     const matchesSearch = draw.draw_name.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesStatus = statusFilter === 'all' || draw.status === statusFilter
@@ -149,11 +427,19 @@ export function AdminLotteryPanel() {
 
   const handleCreateDraw = async () => {
     try {
-      // Подготавливаем данные для создания
+      // Preparar datos para creación
       const drawData: CreateLotteryDrawData = {
-        ...newDraw,
-        draw_name: newDraw.draw_name, // Номер добавится автоматически в БД
-        // Временно отключено - требует миграции add_scheduled_start_time.sql
+        draw_name: newDraw.draw_name, // El número se agregará automáticamente en la BD
+        draw_date: undefined, // Será establecido por el servidor con valor por defecto NOW()
+        end_date: newDraw.end_date || undefined,
+        duration_minutes: newDraw.duration_minutes || undefined,
+        prize_description: newDraw.prize_description,
+        prize_image_1: newDraw.prize_image_1,
+        prize_image_2: newDraw.prize_image_2,
+        prize_image_3: newDraw.prize_image_3,
+        number_price_usd: newDraw.number_price_usd,
+        number_price_bs: newDraw.number_price_bs,
+        // Temporalmente deshabilitado - requiere migración add_scheduled_start_time.sql
         // scheduled_start_time: enableDelayedStart ? newDraw.scheduled_start_time : undefined
       }
       
@@ -165,17 +451,17 @@ export function AdminLotteryPanel() {
       setIsCreateDrawOpen(false)
       setNewDraw({
         draw_name: '',
-        draw_date: '',
+        end_date: '',
+        duration_minutes: 60,
         prize_description: '',
         prize_image_1: '',
         prize_image_2: '',
         prize_image_3: '',
-        // scheduled_start_time: '', // Временно отключено
+        // scheduled_start_time: '', // Temporalmente deshabilitado
         number_price_usd: 1.00,
-        number_price_bs: currentRate || 162.95
-        // created_by убрано - будет автоматически назначено в БД
+        number_price_bs: 162.95
       })
-      // setEnableDelayedStart(false) // Временно отключено
+      // setEnableDelayedStart(false) // Temporalmente deshabilitado
     } catch (error) {
       toast.error('Error al crear el sorteo')
       console.error(error)
@@ -212,8 +498,6 @@ export function AdminLotteryPanel() {
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'scheduled':
-        return 'Programado'
       case 'active':
         return 'Activo'
       case 'finished':
@@ -278,12 +562,12 @@ export function AdminLotteryPanel() {
     )
   }
 
-  return (
-    <div className="space-y-8">
-      {/* Статус миграций */}
-      <MigrationStatus />
-      
-      <Tabs defaultValue="active" className="w-full">
+      return (
+      <div className="space-y-8">
+        {/* Estado de migraciones */}
+        <MigrationStatus />
+        
+        <Tabs defaultValue="active" className="w-full">
         <div className="flex justify-between items-center mb-6">
           <div>
             <h2 className="text-3xl font-bold bg-gradient-to-r from-purple-400 via-purple-500 to-purple-600 bg-clip-text text-transparent">
@@ -292,22 +576,35 @@ export function AdminLotteryPanel() {
             <p className="text-gray-300 mt-1">Crear y administrar sorteos de la lotería</p>
           </div>
           
-          <Button
-            onClick={() => setIsCreateDrawOpen(true)}
-            className="bg-purple-600 hover:bg-purple-700 text-white border-0 flex items-center gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            Nuevo Sorteo
-          </Button>
+                     <Button
+             onClick={() => setIsCreateDrawOpen(true)}
+             className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white border-0 flex items-center gap-2 shadow-xl hover:scale-105 transition-all duration-200 py-3 px-6 font-semibold rounded-xl"
+           >
+             <Plus className="w-4 h-4" />
+             Nuevo Sorteo
+           </Button>
         </div>
 
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="active">Sorteos Activos</TabsTrigger>
-          <TabsTrigger value="history">Historial</TabsTrigger>
+        <TabsList className="flex w-full overflow-x-auto scrollbar-hide bg-white/10 backdrop-blur-sm border border-gray-700 rounded-2xl p-1 gap-1 min-w-0">
+          <TabsTrigger 
+            value="active" 
+            className="flex-1 min-w-[120px] data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-purple-600 data-[state=active]:text-white text-gray-300 hover:text-white transition-all duration-200 rounded-xl font-medium text-sm px-4 py-2 whitespace-nowrap"
+          >
+            Sorteos Activos
+          </TabsTrigger>
+          <TabsTrigger 
+            value="history" 
+            className="flex-1 min-w-[120px] data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-purple-600 data-[state=active]:text-white text-gray-300 hover:text-white transition-all duration-200 rounded-xl font-medium text-sm px-4 py-2 whitespace-nowrap"
+          >
+            Historial
+          </TabsTrigger>
         </TabsList>
 
         {/* Sorteos Activos */}
         <TabsContent value="active" className="space-y-6">
+          {/* Estadísticas del sorteo activo */}
+          <ActiveLotteryStats />
+          
           <div className="grid gap-6">
             {activeDraws.length > 0 ? (
               activeDraws.map((draw) => (
@@ -338,8 +635,24 @@ export function AdminLotteryPanel() {
                         </span>
                       </div>
 
-                      {/* Таймер для отложенного запуска */}
-                      <DrawCountdownTimer draw={draw} />
+                      {/* Tiempo de duración del sorteo */}
+                      {(draw.end_date || draw.duration_minutes) && (
+                        <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
+                          <div className="flex flex-wrap items-center gap-4 text-sm">
+                            {draw.end_date && (
+                              <span className="text-blue-300 flex items-center gap-1">
+                                <Clock className="w-4 h-4" />
+                                Finaliza: {formatDate(draw.end_date)}
+                              </span>
+                            )}
+                            {draw.duration_minutes && (
+                              <span className="text-blue-300 flex items-center gap-1">
+                                ⏱️ Duración: {formatDuration(draw.duration_minutes)}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )}
 
                       {/* Prize Description */}
                       <div className="flex items-start gap-2">
@@ -403,15 +716,27 @@ export function AdminLotteryPanel() {
 
                     {/* Right side - Actions */}
                     <div className="flex flex-col sm:flex-row gap-3 lg:flex-col lg:w-48">
+                      {/* El administrador puede editar sorteos en cualquier estado */}
+                                             <Button
+                         onClick={() => handleEditDraw(draw)}
+                         className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white border-0 flex items-center gap-2 shadow-lg hover:scale-105 transition-all duration-200 font-medium rounded-xl"
+                       >
+                         <Edit className="w-4 w-4" />
+                         Editar
+                       </Button>
+                      
+                      {/* Botón de eliminación solo para sorteos no iniciados */}
                       {draw.status === 'scheduled' && (
-                        <Button
-                          onClick={() => setSelectedDraw(draw)}
-                          className="bg-purple-600 hover:bg-purple-700 text-white border-0 flex items-center gap-2"
-                        >
-                          <Edit className="w-4 h-4" />
-                          Editar
-                        </Button>
+                                                 <Button
+                           onClick={() => handleDeleteDraw(draw)}
+                           className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white border-0 flex items-center gap-2 shadow-lg hover:scale-105 transition-all duration-200 font-medium rounded-xl"
+                           disabled={deleteDrawMutation.isPending}
+                         >
+                           <Trash2 className="w-4 h-4" />
+                           {deleteDrawMutation.isPending ? 'Eliminando...' : 'Eliminar'}
+                         </Button>
                       )}
+                      
                       <div className="lg:w-full">
                         <Label className="text-gray-300 text-sm">Estado:</Label>
                         <Select 
@@ -422,7 +747,6 @@ export function AdminLotteryPanel() {
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="scheduled">Programado</SelectItem>
                             <SelectItem value="active">Activo</SelectItem>
                             <SelectItem value="finished">Finalizado</SelectItem>
                             <SelectItem value="cancelled">Cancelado</SelectItem>
@@ -477,14 +801,13 @@ export function AdminLotteryPanel() {
               </div>
               <div className="sm:w-auto">
                 <Label className="text-white text-sm mb-2 block">&nbsp;</Label>
-                <Button
-                  onClick={clearFilters}
-                  variant="outline"
-                  className="border-gray-600 text-gray-300 hover:bg-gray-700 flex items-center gap-2"
-                >
-                  <RotateCcw className="w-4 h-4" />
-                  Limpiar
-                </Button>
+                                 <Button
+                   onClick={clearFilters}
+                   className="bg-white/10 hover:bg-white/20 text-gray-300 hover:text-white border border-gray-600 hover:border-gray-500 flex items-center gap-2 transition-all duration-200 font-medium rounded-xl"
+                 >
+                   <RotateCcw className="w-4 h-4" />
+                   Limpiar
+                 </Button>
               </div>
             </div>
           </div>
@@ -515,6 +838,17 @@ export function AdminLotteryPanel() {
                           <Calendar className="w-3 h-3" />
                           {formatDate(draw.draw_date)}
                         </span>
+                        {draw.end_date && (
+                          <span className="flex items-center gap-1 text-blue-300">
+                            <Clock className="w-3 h-3" />
+                            Finalizado: {formatDate(draw.end_date)}
+                          </span>
+                        )}
+                        {draw.duration_minutes && (
+                          <span className="flex items-center gap-1 text-blue-300">
+                            ⏱️ {formatDuration(draw.duration_minutes)}
+                          </span>
+                        )}
                         <span className="flex items-center gap-1">
                           <Gift className="w-3 h-3" />
                           {draw.prize_description}
@@ -527,8 +861,33 @@ export function AdminLotteryPanel() {
                         )}
                       </div>
                       
-                      {/* Таймер для отложенного запуска в истории */}
+                      {/* Temporizador para inicio programado en historial */}
                       <DrawCountdownTimer draw={draw} />
+                    </div>
+                    
+                    {/* Actions for history items */}
+                    <div className="flex gap-2">
+                                             <Button
+                         onClick={() => handleEditDraw(draw)}
+                         size="sm"
+                         className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white border-0 flex items-center gap-2 shadow-md hover:scale-105 transition-all duration-200 font-medium rounded-xl"
+                       >
+                         <Edit className="w-3 h-3" />
+                         Editar
+                       </Button>
+                      
+                      {/* Botón de eliminación solo para sorteos no iniciados */}
+                      {draw.status === 'scheduled' && (
+                                                 <Button
+                           onClick={() => handleDeleteDraw(draw)}
+                           size="sm"
+                           className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white border-0 flex items-center gap-2 shadow-md hover:scale-105 transition-all duration-200 font-medium rounded-xl"
+                           disabled={deleteDrawMutation.isPending}
+                         >
+                           <Trash2 className="w-3 h-3" />
+                           Eliminar
+                         </Button>
+                      )}
                     </div>
                   </div>
                 </motion.div>
@@ -570,45 +929,98 @@ export function AdminLotteryPanel() {
             >
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-xl font-bold text-white">Crear Nuevo Sorteo</h3>
-                <Button
-                  onClick={() => setIsCreateDrawOpen(false)}
-                  variant="ghost"
-                  size="sm"
-                  className="text-gray-400 hover:text-white"
-                >
-                  <X className="w-4 h-4" />
-                </Button>
+                                 <Button
+                   onClick={() => setIsCreateDrawOpen(false)}
+                   size="sm"
+                   className="text-gray-400 hover:text-white hover:bg-white/10 transition-all duration-200"
+                 >
+                   <X className="w-4 h-4" />
+                 </Button>
               </div>
               
               <form onSubmit={(e) => { e.preventDefault(); handleCreateDraw(); }} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="draw_name" className="text-white">Nombre del Sorteo</Label>
-                    <Input
-                      id="draw_name"
-                      value={newDraw.draw_name}
-                      onChange={(e) => setNewDraw({ ...newDraw, draw_name: e.target.value })}
-                      className="bg-white/5 border-gray-600 text-white placeholder:text-gray-400"
-                      placeholder="Ej: Sorteo de Navidad 2024"
-                      required
-                    />
-                    <p className="text-xs text-gray-400 mt-1">Se asignará automáticamente un número de sorteo</p>
+                <div>
+                  <Label htmlFor="draw_name" className="text-white">Nombre del Sorteo</Label>
+                  <Input
+                    id="draw_name"
+                    value={newDraw.draw_name}
+                    onChange={(e) => setNewDraw({ ...newDraw, draw_name: e.target.value })}
+                    className="bg-white/5 border-gray-600 text-white placeholder:text-gray-400"
+                    placeholder="Ej: Sorteo de Navidad 2024"
+                    required
+                  />
+                  <p className="text-xs text-gray-400 mt-1">Se asignará automáticamente un número de sorteo</p>
+                </div>
+
+                {/* Configuración de tiempo del sorteo */}
+                <div className="bg-white/5 border border-gray-600 rounded-lg p-4">
+                  <Label className="text-white font-medium mb-4 block">⏱️ Duración del Sorteo</Label>
+                  
+                                     {/* Botones de selección rápida */}
+                   <div className="mb-6">
+                     <Label className="text-white text-sm mb-3 block">⚡ Selección rápida:</Label>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+                      {quickDurationOptions.map((option) => (
+                        <Button
+                          key={option.label}
+                          type="button"
+                          onClick={() => handleQuickDurationSelect(option.minutes)}
+                          className={`text-xs py-2 px-3 transition-all duration-200 ${
+                            newDraw.duration_minutes === option.minutes
+                              ? 'bg-purple-500 hover:bg-purple-600 text-white border-purple-400'
+                              : 'bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white border-gray-600 hover:border-gray-500'
+                          }`}
+                        >
+                          {option.label}
+                        </Button>
+                      ))}
+                    </div>
                   </div>
                   
-                  <div>
-                    <Label htmlFor="draw_date" className="text-white">Fecha y Hora</Label>
-                    <Input
-                      id="draw_date"
-                      type="datetime-local"
-                      value={newDraw.draw_date}
-                      onChange={(e) => setNewDraw({ ...newDraw, draw_date: e.target.value })}
-                      className="bg-white/5 border-gray-600 text-white"
-                      required
-                    />
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <Label htmlFor="end_date" className="text-white">Fecha y Hora de Finalización</Label>
+                      <Input
+                        id="end_date"
+                        type="datetime-local"
+                        value={newDraw.end_date}
+                        onChange={(e) => handleEndDateChange(e.target.value)}
+                        className="bg-white/5 border-gray-600 text-white"
+                      />
+                      <p className="text-xs text-gray-400 mt-1">Opcional - se calculará automáticamente</p>
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="duration_minutes" className="text-white">Duración (minutos)</Label>
+                      <Input
+                        id="duration_minutes"
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={newDraw.duration_minutes || ''}
+                        onChange={(e) => handleDurationChange(parseInt(e.target.value) || 0)}
+                        className="bg-white/5 border-gray-600 text-white"
+                        placeholder="60"
+                      />
+                      <p className="text-xs text-gray-400 mt-1">Por defecto: 60 minutos</p>
+                    </div>
+                    
+                    <div className="flex items-end">
+                      <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 w-full">
+                        <div className="text-blue-300 text-sm font-medium mb-1">Duración calculada:</div>
+                        <div className="text-blue-200 text-lg font-mono">
+                          {newDraw.duration_minutes ? formatDuration(newDraw.duration_minutes) : '--'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="mt-3 p-2 bg-blue-500/10 border border-blue-500/30 rounded text-xs text-blue-300">
+                    <span className="font-medium">💡 Consejo:</span> Puedes establecer la duración en minutos o la fecha de finalización. Los campos se actualizarán automáticamente.
                   </div>
                 </div>
-                
-                                 {/* Настройки цены номера */}
+
+                 {/* Configuración de precio por número */}
                  <div className="bg-white/5 border border-gray-600 rounded-lg p-4">
                    <div className="flex items-center justify-between mb-4">
                      <Label className="text-white font-medium">💰 Precio por número</Label>
@@ -639,11 +1051,8 @@ export function AdminLotteryPanel() {
                          value={newDraw.number_price_usd || ''}
                          onChange={(e) => {
                            const value = parseFloat(e.target.value) || 0
-                           if (primaryCurrency === 'USD') {
-                             updatePrices(value, 'USD')
-                           } else {
-                             setNewDraw(prev => ({ ...prev, number_price_usd: value }))
-                           }
+                           // Siempre actualizar a través de función de sincronización
+                           updatePrices(value, 'USD')
                          }}
                          className="bg-white/5 border-gray-600 text-white"
                          placeholder="1.00"
@@ -671,11 +1080,8 @@ export function AdminLotteryPanel() {
                          value={newDraw.number_price_bs || ''}
                          onChange={(e) => {
                            const value = parseFloat(e.target.value) || 0
-                           if (primaryCurrency === 'VES') {
-                             updatePrices(value, 'VES')
-                           } else {
-                             setNewDraw(prev => ({ ...prev, number_price_bs: value }))
-                           }
+                           // Siempre actualizar a través de función de sincronización
+                           updatePrices(value, 'VES')
                          }}
                          className="bg-white/5 border-gray-600 text-white"
                          placeholder="162.95"
@@ -691,7 +1097,7 @@ export function AdminLotteryPanel() {
                    </div>
                  </div>
 
-                 {/* Опция отложенного запуска - ВРЕМЕННО ОТКЛЮЧЕНО */}
+                 {/* Opción de inicio programado - TEMPORALMENTE DESHABILITADO */}
                  <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
                    <div className="flex items-center space-x-3 mb-2">
                      <span className="text-yellow-400">⚠️</span>
@@ -733,23 +1139,256 @@ export function AdminLotteryPanel() {
                   ))}
                 </div>
                 
-                <div className="flex gap-3 justify-end pt-4">
-                  <Button
-                    type="button"
-                    onClick={() => setIsCreateDrawOpen(false)}
-                    variant="outline"
-                    className="border-gray-600 text-gray-300 hover:bg-gray-700"
-                  >
-                    Cancelar
-                  </Button>
-                  <Button
-                    type="submit"
-                    disabled={createDrawMutation.isPending}
-                    className="bg-purple-600 hover:bg-purple-700 text-white border-0"
-                  >
-                    {createDrawMutation.isPending ? 'Creando...' : 'Crear Sorteo'}
-                  </Button>
+                                 <div className="flex gap-3 justify-end pt-4">
+                   <Button
+                     type="button"
+                     onClick={() => setIsCreateDrawOpen(false)}
+                     className="bg-white/10 hover:bg-white/20 text-gray-300 hover:text-white border border-gray-600 hover:border-gray-500 transition-all duration-200 font-medium rounded-xl"
+                   >
+                     Cancelar
+                   </Button>
+                   <Button
+                     type="submit"
+                     disabled={createDrawMutation.isPending}
+                     className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white border-0 shadow-lg hover:scale-105 transition-all duration-200 font-semibold rounded-xl"
+                   >
+                     {createDrawMutation.isPending ? 'Creando...' : 'Crear Sorteo'}
+                   </Button>
+                 </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Edit Draw Modal */}
+      <AnimatePresence>
+        {isEditDrawOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setIsEditDrawOpen(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-gray-800 border border-gray-700 rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-white">Editar Sorteo</h3>
+                                 <Button
+                   onClick={() => setIsEditDrawOpen(false)}
+                   size="sm"
+                   className="text-gray-400 hover:text-white hover:bg-white/10 transition-all duration-200"
+                 >
+                   <X className="w-4 h-4" />
+                 </Button>
+              </div>
+              
+              <form onSubmit={(e) => { e.preventDefault(); handleUpdateDraw(); }} className="space-y-6">
+                <div>
+                  <Label htmlFor="edit_draw_name" className="text-white">Nombre del Sorteo</Label>
+                  <Input
+                    id="edit_draw_name"
+                    value={editDraw.draw_name}
+                    onChange={(e) => setEditDraw({ ...editDraw, draw_name: e.target.value })}
+                    className="bg-white/5 border-gray-600 text-white placeholder:text-gray-400"
+                    placeholder="#1 - Primer Sorteo del Mes"
+                    required
+                  />
                 </div>
+
+                {/* Configuración de tiempo del sorteo - Editar */}
+                <div className="bg-white/5 border border-gray-600 rounded-lg p-4">
+                  <Label className="text-white font-medium mb-4 block">⏱️ Duración del Sorteo</Label>
+                  
+                  {/* Botones de selección rápida para edición */}
+                  <div className="mb-6">
+                    <Label className="text-white text-sm mb-3 block">⚡ Selección rápida:</Label>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+                      {quickDurationOptions.map((option) => (
+                        <Button
+                          key={option.label}
+                          type="button"
+                          onClick={() => handleEditQuickDurationSelect(option.minutes)}
+                          className={`text-xs py-2 px-3 transition-all duration-200 ${
+                            editDraw.duration_minutes === option.minutes
+                              ? 'bg-purple-500 hover:bg-purple-600 text-white border-purple-400'
+                              : 'bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white border-gray-600 hover:border-gray-500'
+                          }`}
+                        >
+                          {option.label}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <Label htmlFor="edit_end_date" className="text-white">Fecha y Hora de Finalización</Label>
+                      <Input
+                        id="edit_end_date"
+                        type="datetime-local"
+                        value={editDraw.end_date}
+                        onChange={(e) => handleEditEndDateChange(e.target.value)}
+                        className="bg-white/5 border-gray-600 text-white"
+                      />
+                      <p className="text-xs text-gray-400 mt-1">Opcional - se calculará automáticamente</p>
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="edit_duration_minutes" className="text-white">Duración (minutos)</Label>
+                      <Input
+                        id="edit_duration_minutes"
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={editDraw.duration_minutes || ''}
+                        onChange={(e) => handleEditDurationChange(parseInt(e.target.value) || 0)}
+                        className="bg-white/5 border-gray-600 text-white"
+                        placeholder="60"
+                      />
+                      <p className="text-xs text-gray-400 mt-1">Por defecto: 60 minutos</p>
+                    </div>
+                    
+                    <div className="flex items-end">
+                      <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 w-full">
+                        <div className="text-blue-300 text-sm font-medium mb-1">Duración calculada:</div>
+                        <div className="text-blue-200 text-lg font-mono">
+                          {editDraw.duration_minutes ? formatDuration(editDraw.duration_minutes) : '--'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="mt-3 p-2 bg-blue-500/10 border border-blue-500/30 rounded text-xs text-blue-300">
+                    <span className="font-medium">💡 Consejo:</span> Puedes establecer la duración en minutos o la fecha de finalización. Los campos se actualizarán automáticamente.
+                  </div>
+                </div>
+
+                 {/* Configuración de precio por número */}
+                 <div className="bg-white/5 border border-gray-600 rounded-lg p-4">
+                   <div className="flex items-center justify-between mb-4">
+                     <Label className="text-white font-medium">💰 Precio por número</Label>
+                     <div className="flex items-center gap-2 text-xs">
+                       <span className={`px-2 py-1 rounded ${isStale ? 'bg-yellow-500/20 text-yellow-300' : 'bg-green-500/20 text-green-300'}`}>
+                         {rateDisplay}
+                       </span>
+                       {isStale && <span className="text-yellow-400">⚠️ Desactualizado</span>}
+                     </div>
+                   </div>
+                   
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                     <div>
+                       <Label htmlFor="price_usd" className="text-white flex items-center gap-2">
+                         💵 Precio en Dólares (USD)
+                         <input
+                           type="radio"
+                           checked={primaryCurrency === 'USD'}
+                           onChange={() => setPrimaryCurrency('USD')}
+                           className="w-3 h-3"
+                         />
+                       </Label>
+                       <Input
+                         id="price_usd"
+                         type="number"
+                         step="0.01"
+                         min="0.01"
+                         value={editDraw.number_price_usd || ''}
+                         onChange={(e) => {
+                           const value = parseFloat(e.target.value) || 0
+                           updateEditPrices(value, 'USD')
+                         }}
+                         className="bg-white/5 border-gray-600 text-white"
+                         placeholder="1.00"
+                       />
+                       <p className="text-xs text-gray-400 mt-1">
+                         {formatPrices(editDraw.number_price_usd || 0, 0).usd}
+                       </p>
+                     </div>
+                     
+                     <div>
+                       <Label htmlFor="price_bs" className="text-white flex items-center gap-2">
+                         🪙 Precio en Bolívares (Bs)
+                         <input
+                           type="radio"
+                           checked={primaryCurrency === 'VES'}
+                           onChange={() => setPrimaryCurrency('VES')}
+                           className="w-3 h-3"
+                         />
+                       </Label>
+                       <Input
+                         id="price_bs"
+                         type="number"
+                         step="0.01"
+                         min="0.01"
+                         value={editDraw.number_price_bs || ''}
+                         onChange={(e) => {
+                           const value = parseFloat(e.target.value) || 0
+                           updateEditPrices(value, 'VES')
+                         }}
+                         className="bg-white/5 border-gray-600 text-white"
+                         placeholder="162.95"
+                       />
+                       <p className="text-xs text-gray-400 mt-1">
+                         {formatPrices(0, editDraw.number_price_bs || 0).bs}
+                       </p>
+                     </div>
+                   </div>
+                   
+                   <div className="mt-3 p-2 bg-blue-500/10 border border-blue-500/30 rounded text-xs text-blue-300">
+                     <span className="font-medium">💡 Consejo:</span> Los precios se sincronizan automáticamente con el tipo de cambio actual
+                   </div>
+                 </div>
+                
+                <div>
+                  <Label htmlFor="edit_prize_description" className="text-white">Descripción del Premio</Label>
+                  <Textarea
+                    id="edit_prize_description"
+                    value={editDraw.prize_description}
+                    onChange={(e) => setEditDraw({ ...editDraw, prize_description: e.target.value })}
+                    className="bg-white/5 border-gray-600 text-white placeholder:text-gray-400"
+                    placeholder="iPhone 15 Pro Max + AirPods Pro + Funda Premium..."
+                    rows={3}
+                    required
+                  />
+                </div>
+
+                {/* Prize Images */}
+                <div className="space-y-4">
+                  <Label className="text-white">Imágenes del Premio (opcional, máximo 3)</Label>
+                  
+                  {[1, 2, 3].map((num) => (
+                    <ImageUpload
+                      key={num}
+                      label={`Imagen ${num}`}
+                      value={editDraw[`prize_image_${num}` as keyof CreateLotteryDrawData] as string || ''}
+                      onChange={(url) => setEditDraw({ ...editDraw, [`prize_image_${num}`]: url })}
+                      className="w-full"
+                    />
+                  ))}
+                </div>
+                
+                                 <div className="flex gap-3 justify-end pt-4">
+                   <Button
+                     type="button"
+                     onClick={() => setIsEditDrawOpen(false)}
+                     className="bg-white/10 hover:bg-white/20 text-gray-300 hover:text-white border border-gray-600 hover:border-gray-500 transition-all duration-200 font-medium rounded-xl"
+                   >
+                     Cancelar
+                   </Button>
+                   <Button
+                     type="submit"
+                     disabled={updateDrawMutation.isPending}
+                     className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white border-0 shadow-lg hover:scale-105 transition-all duration-200 font-semibold rounded-xl"
+                   >
+                     {updateDrawMutation.isPending ? 'Actualizando...' : 'Guardar Cambios'}
+                   </Button>
+                 </div>
               </form>
             </motion.div>
           </motion.div>

@@ -1,0 +1,13 @@
+---
+description:For this lottery project (reserva-tu-suerte), all interface text, toast notifications, and user-facing content should always be in Spanish language only. The user explicitly specified that only Spanish language should be used throughout the project.
+
+The user prefers that the assistant provide full detailed write-ups rather than just structure outlines.
+
+For the RNDM Numbers project, use 'npm run dev' to start the Metro bundler (development server) instead of 'npm run start'.
+
+The user wants to always include MUI Material (Material Design), HeroUI (modern components), shadcn/ui (copyable components), and Tailwind CSS (utility-first styles) in prompts for future frontend projects.
+
+The project's application UI should be in Spanish only; Russian text should not be used.
+globs:
+alwaysApply: false
+---

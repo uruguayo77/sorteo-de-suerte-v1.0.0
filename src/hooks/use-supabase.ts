@@ -191,8 +191,8 @@ export const useCompleteTemporaryApplication = () => {
         .from('applications')
         .update({
           ...userData,
-          // Убираем reserved_until - заявка больше не временная
-          reserved_until: null
+          // НЕ убираем reserved_until - номера остаются заблокированными до решения администратора
+          // reserved_until остается, чтобы номера оставались недоступными для других пользователей
         })
         .eq('id', applicationId)
         .select()
@@ -238,6 +238,58 @@ export const useBlockedNumbers = () => {
   })
 }
 
+// Хук для получения заблокированных номеров только для конкретного розыгрыша
+export const useBlockedNumbersForDraw = (drawId: string | null) => {
+  return useQuery({
+    queryKey: ['blockedNumbersForDraw', drawId],
+    queryFn: async () => {
+      if (!drawId) {
+        console.log('useBlockedNumbersForDraw: no drawId provided, returning empty set')
+        return new Set()
+      }
+      
+      console.log('useBlockedNumbersForDraw: fetching blocked numbers for draw:', drawId)
+      
+      try {
+        // Получаем заявки для конкретного розыгрыша со статусом approved или pending
+        const { data, error } = await supabase
+          .from('applications')
+          .select('numbers')  // ИСПРАВЛЕНО: numbers вместо number
+          .eq('draw_id', drawId)
+          .in('status', ['approved', 'pending'])
+        
+        console.log('useBlockedNumbersForDraw result:', { data, error, drawId })
+        
+        if (error) throw error
+        
+        // Конвертируем массивы номеров в единый Set
+        const blockedNumbers = new Set<number>()
+        
+        // Обрабатываем каждую заявку и добавляем все номера в Set
+        if (data) {
+          for (const application of data) {
+            if (application.numbers && Array.isArray(application.numbers)) {
+              for (const number of application.numbers) {
+                blockedNumbers.add(number)
+              }
+            }
+          }
+        }
+        
+        console.log(`Blocked numbers for draw ${drawId}:`, Array.from(blockedNumbers))
+        return blockedNumbers
+      } catch (error) {
+        console.error('useBlockedNumbersForDraw error:', error)
+        // В случае ошибки возвращаем пустой набор
+        return new Set()
+      }
+    },
+    enabled: !!drawId, // Только выполняем запрос если есть drawId
+    refetchInterval: 5000, // Уменьшил интервал до 5 секунд для более быстрого обновления
+    staleTime: 0, // Данные всегда считаются устаревшими для немедленного обновления
+  })
+}
+
 // Хук для временной блокировки чисел на 15 минут
 export const useReserveNumbersTemporarily = () => {
   const queryClient = useQueryClient()
@@ -270,15 +322,23 @@ export const useReserveNumbersTemporarily = () => {
       if (error) throw error
       return data[0] // Возвращаем первую (и единственную) строку результата
     },
-    onSuccess: (data) => {
-      // Обновляем кэш заблокированных номеров
-      queryClient.invalidateQueries({ queryKey: ['blockedNumbers'] })
+    onSuccess: async (data) => {
+      // Принудительно обновляем кэш заблокированных номеров для всех розыгрышей
+      await queryClient.invalidateQueries({ queryKey: ['blockedNumbers'] })
+      await queryClient.invalidateQueries({ queryKey: ['blockedNumbersForDraw'] })
+      await queryClient.invalidateQueries({ queryKey: ['activeLotteryStats'] })
+      
+      // Принудительно перезапрашиваем данные
+      await queryClient.refetchQueries({ queryKey: ['blockedNumbers'] })
+      await queryClient.refetchQueries({ queryKey: ['blockedNumbersForDraw'] })
       
       console.log('Numbers reserved temporarily:', {
         applicationId: data.application_id,
         reservedUntil: data.reserved_until,
         blockedNumbers: data.blocked_numbers
       })
+      
+      console.log('Cache invalidated and refetched after reservation')
     },
     onError: (error) => {
       console.error('Failed to reserve numbers:', error)
@@ -353,7 +413,13 @@ export const useUploadPaymentProof = () => {
         .upload(fileName, file)
       
       if (error) throw error
-      return data.path
+      
+      // Получаем публичный URL для файла
+      const { data: urlData } = supabase.storage
+        .from('payment-proofs')
+        .getPublicUrl(data.path)
+      
+      return urlData.publicUrl
     },
   })
 } 
@@ -449,6 +515,33 @@ export function useLotteryDraws() {
       if (error) throw error
       return data as LotteryDraw[]
     }
+  })
+}
+
+// Хук для получения активного розыгрыша
+export function useActiveLotteryDraw() {
+  return useQuery({
+    queryKey: ['active-lottery-draw'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('lottery_draws')
+        .select('*')
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single()
+      
+      if (error) {
+        if (error.code === 'PGRST116') {
+          // No active draw found
+          return null
+        }
+        throw error
+      }
+      
+      return data as LotteryDraw
+    },
+    refetchInterval: 10000, // Обновляем каждые 10 секунд
   })
 }
 
@@ -726,3 +819,75 @@ export function useCancelTemporaryReservation() {
     }
   })
 }
+
+// Хук для получения статистики активного розыгрыша  
+export const useActiveLotteryStats = () => {
+  const { data: activeDraw } = useActiveLotteryDraw();
+  const { data: blockedNumbers } = useBlockedNumbersForDraw(activeDraw?.id || null);
+  const { data: maxNumbersSetting } = useLotterySetting('max_numbers');
+  
+  return useQuery({
+    queryKey: ['activeLotteryStats', blockedNumbers, maxNumbersSetting, activeDraw?.id],
+    queryFn: async () => {
+      // Получаем общее количество номеров
+      const maxNumbers = maxNumbersSetting ? 
+        parseInt(maxNumbersSetting.setting_value) : 100;
+      
+      // Получаем количество заблокированных номеров для текущего розыгрыша
+      const blockedCount = blockedNumbers ? blockedNumbers.size : 0;
+      
+      // Вычисляем доступные номера
+      const availableCount = maxNumbers - blockedCount;
+      
+      // Проверяем, все ли номера проданы
+      const allSold = availableCount === 0;
+      
+      return {
+        totalNumbers: maxNumbers,
+        blockedNumbers: blockedCount,
+        availableNumbers: availableCount,
+        allNumbersSold: allSold,
+        soldPercentage: Math.round((blockedCount / maxNumbers) * 100)
+      };
+    },
+    enabled: !!maxNumbersSetting,
+    refetchInterval: 10000, // Обновляем каждые 10 секунд
+  });
+};
+
+// Хук для завершения розыгрыша при продаже всех номеров
+export const useAutoFinishLottery = () => {
+  const { data: activeLottery } = useActiveLotteryDraw();
+  const { data: stats } = useActiveLotteryStats();
+  
+  return useMutation({
+    mutationFn: async (winnerNumber: number) => {
+      if (!activeLottery) {
+        throw new Error('Нет активного розыгрыша');
+      }
+      
+      const { data, error } = await supabase
+        .from('lottery_draws')
+        .update({
+          status: 'finished',
+          winner_number: winnerNumber,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', activeLottery.id)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      console.log('Розыгрыш успешно завершен');
+    },
+    onError: (error) => {
+      console.error('Ошибка завершения розыгрыша:', error);
+    }
+  });
+};
+
+// Экспорт хука для блокировки всех номеров (тестирование)
+export { useBlockAllNumbers } from './use-block-all-numbers';

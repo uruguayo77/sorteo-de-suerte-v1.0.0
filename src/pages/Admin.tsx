@@ -6,9 +6,10 @@ import { useScheduledDrawAutostart } from '@/hooks/use-scheduled-draws'
 import { useAdminAuth } from '@/hooks/use-admin-auth'
 import { Application } from '@/lib/supabase'
 import { toast } from 'sonner'
-import { Check, X, Clock, User, Phone, CreditCard, Image as ImageIcon, Calendar, FileText, LogOut, ArrowLeft, Users, Trophy, Search, Filter } from 'lucide-react'
+import { Check, X, Clock, User, Phone, CreditCard, Image as ImageIcon, Calendar, FileText, LogOut, ArrowLeft, Users, Trophy, Search, Filter, Monitor } from 'lucide-react'
 import { useNavigate, Link } from 'react-router-dom'
 import { AdminLotteryPanel } from '@/components/AdminLotteryPanel'
+import OnboardingAdmin from '@/components/admin/OnboardingAdmin'
 
 const Admin = () => {
   const { data: applications, isLoading: applicationsLoading, error } = useApplications()
@@ -20,7 +21,7 @@ const Admin = () => {
   useScheduledDrawAutostart()
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null)
   const [adminNotes, setAdminNotes] = useState('')
-  const [activeTab, setActiveTab] = useState<'applications' | 'draws'>('applications')
+  const [activeTab, setActiveTab] = useState<'applications' | 'draws' | 'onboarding'>('applications')
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedDrawId, setSelectedDrawId] = useState<string | null>(null)
   const navigate = useNavigate()
@@ -185,21 +186,22 @@ const Admin = () => {
 
         {/* Tabs */}
         <div className="flex justify-center mb-8">
-          <div className="bg-white/10 backdrop-blur-sm border border-gray-700 rounded-2xl p-2 flex gap-2">
+          <div className="bg-white/10 backdrop-blur-sm border border-gray-700 rounded-2xl p-2 flex overflow-x-auto scrollbar-hide gap-1 min-w-0 max-w-full">
             <button
               onClick={() => setActiveTab('applications')}
-              className={`px-6 py-3 rounded-xl font-medium transition-all duration-200 flex items-center gap-2 ${
+              className={`flex-1 min-w-[120px] px-4 py-3 rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-2 whitespace-nowrap ${
                 activeTab === 'applications'
                   ? 'bg-purple-600 text-white shadow-lg'
                   : 'text-gray-300 hover:text-white hover:bg-white/10'
               }`}
             >
               <Users className="w-4 h-4" />
-              Solicitudes
+              <span className="hidden sm:inline">Solicitudes</span>
+              <span className="sm:hidden">Solicitud</span>
             </button>
             <button
               onClick={() => setActiveTab('draws')}
-              className={`px-6 py-3 rounded-xl font-medium transition-all duration-200 flex items-center gap-2 ${
+              className={`flex-1 min-w-[120px] px-4 py-3 rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-2 whitespace-nowrap ${
                 activeTab === 'draws'
                   ? 'bg-purple-600 text-white shadow-lg'
                   : 'text-gray-300 hover:text-white hover:bg-white/10'
@@ -207,6 +209,18 @@ const Admin = () => {
             >
               <Trophy className="w-4 h-4" />
               Sorteos
+            </button>
+            <button
+              onClick={() => setActiveTab('onboarding')}
+              className={`flex-1 min-w-[120px] px-4 py-3 rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-2 whitespace-nowrap ${
+                activeTab === 'onboarding'
+                  ? 'bg-purple-600 text-white shadow-lg'
+                  : 'text-gray-300 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              <Monitor className="w-4 h-4" />
+              <span className="hidden sm:inline">Onboarding</span>
+              <span className="sm:hidden">Config</span>
             </button>
           </div>
         </div>
@@ -298,8 +312,7 @@ const Admin = () => {
                                   'bg-gray-500/20 text-gray-300'
                                 }`}>
                                   {group.draw_status === 'finished' ? 'Finalizado' :
-                                   group.draw_status === 'active' ? 'Activo' :
-                                   group.draw_status === 'scheduled' ? 'Programado' : 'Cancelado'}
+                                   group.draw_status === 'active' ? 'Activo' : 'Cancelado'}
                                 </span>
                               </div>
                             </div>
@@ -411,7 +424,7 @@ const Admin = () => {
                       <Button
                         onClick={() => handleUpdateStatus(application.id, 'approved')}
                         disabled={updateApplication.isPending}
-                        className="bg-green-600 hover:bg-green-700 text-white border-0 flex items-center gap-2"
+                        className="bg-green-600 hover:bg-green-700 text-white border-0 flex items-center gap-2 rounded-xl"
                       >
                         <Check className="w-4 h-4" />
                         Aprobar
@@ -422,7 +435,7 @@ const Admin = () => {
                           setAdminNotes('')
                         }}
                         disabled={updateApplication.isPending}
-                        className="bg-red-600 hover:bg-red-700 text-white border-0 flex items-center gap-2"
+                        className="bg-red-600 hover:bg-red-700 text-white border-0 flex items-center gap-2 rounded-xl"
                       >
                         <X className="w-4 h-4" />
                         Rechazar
@@ -464,6 +477,18 @@ const Admin = () => {
                 transition={{ duration: 0.3 }}
               >
                 <AdminLotteryPanel />
+              </motion.div>
+            )}
+
+            {activeTab === 'onboarding' && (
+              <motion.div
+                key="onboarding"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <OnboardingAdmin />
               </motion.div>
             )}
           </AnimatePresence>

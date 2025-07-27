@@ -1,18 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { supabase } from '@/lib/supabase'
-
-export interface LotteryDraw {
-  id: string
-  draw_name: string
-  draw_date: string
-  status: 'scheduled' | 'active' | 'finished' | 'cancelled'
-  winner_number?: number
-  winner_name?: string
-  winner_cedula?: string
-  prize_amount: number
-  time_remaining?: string
-  created_at?: string
-}
+import { supabase, type LotteryDraw } from '@/lib/supabase'
 
 export interface CreateDrawData {
   draw_name: string
@@ -33,9 +20,23 @@ export const useCurrentDraw = () => {
   return useQuery({
     queryKey: ['currentDraw'],
     queryFn: async () => {
-      // Временно возвращаем null, так как мы используем Zustand store для управления лотереями
-      // Эта функция может быть интегрирована позже, если потребуется
-      return null as LotteryDraw | null
+      const { data, error } = await supabase
+        .from('lottery_draws')
+        .select('*')
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single()
+      
+      if (error) {
+        if (error.code === 'PGRST116') {
+          // No active draw found
+          return null
+        }
+        throw error
+      }
+      
+      return data as LotteryDraw
     },
     refetchInterval: 10000, // Обновляем каждые 10 секунд
   })
@@ -197,8 +198,6 @@ export const isDrawExpired = (drawDate: string): boolean => {
 
 export const getDrawStatusText = (status: string): string => {
   switch (status) {
-    case 'scheduled':
-      return 'Programado'
     case 'active':
       return 'En Curso'
     case 'finished':

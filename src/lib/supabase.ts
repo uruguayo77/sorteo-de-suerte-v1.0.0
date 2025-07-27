@@ -151,6 +151,8 @@ export interface LotteryDraw {
   id: string
   draw_name: string
   draw_date: string
+  end_date?: string // Время окончания розыгрыша
+  duration_minutes?: number // Продолжительность розыгрыша в минутах
   status: 'scheduled' | 'active' | 'finished' | 'cancelled'
   winner_number?: number
   winner_name?: string
@@ -199,7 +201,9 @@ export interface CreateApplicationData {
 
 export interface CreateLotteryDrawData {
   draw_name: string
-  draw_date: string
+  draw_date?: string // Теперь опционально - будет установлено сервером при создании
+  end_date?: string // Время окончания розыгрыша
+  duration_minutes?: number // Продолжительность розыгрыша в минутах
   prize_description: string
   prize_image_1?: string
   prize_image_2?: string

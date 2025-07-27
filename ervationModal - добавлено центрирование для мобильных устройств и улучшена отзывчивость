@@ -1,0 +1,95 @@
+[1mdiff --git a/src/components/CancelReservationModal.tsx b/src/components/CancelReservationModal.tsx[m
+[1mindex 27ce398..0214750 100644[m
+[1m--- a/src/components/CancelReservationModal.tsx[m
+[1m+++ b/src/components/CancelReservationModal.tsx[m
+[36m@@ -23,41 +23,57 @@[m [mexport function CancelReservationModal({[m
+ }: CancelReservationModalProps) {[m
+   return ([m
+     <Dialog open={isOpen} onOpenChange={onClose}>[m
+[31m-      <DialogContent className="sm:max-w-md">[m
+[31m-        <DialogHeader>[m
+[31m-          <DialogTitle className="flex items-center gap-2 text-amber-600">[m
+[31m-            <AlertTriangle className="h-5 w-5" />[m
+[32m+[m[32m      <DialogContent className="w-[95vw] max-w-md sm:max-w-lg md:max-w-xl bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 border border-gray-700 rounded-2xl shadow-2xl mx-auto">[m
+[32m+[m[32m        <DialogHeader className="text-center sm:text-left">[m
+[32m+[m[32m          <DialogTitle className="flex items-center justify-center sm:justify-start gap-2 text-orange-400 font-bold text-lg sm:text-xl">[m
+[32m+[m[32m            <AlertTriangle className="h-5 w-5 sm:h-6 sm:w-6" />[m
+             ¿Cancelar reservación?[m
+           </DialogTitle>[m
+[31m-          <DialogDescription className="text-gray-600">[m
+[32m+[m[32m          <DialogDescription className="text-gray-300 text-sm sm:text-base text-center sm:text-left">[m
+             Estás a punto de cancelar tu reservación actual de números. Esta acción no se puede deshacer.[m
+           </DialogDescription>[m
+         </DialogHeader>[m
+ [m
+[31m-        <div className="py-4">[m
+[31m-          <Alert className="border-blue-500/30 bg-blue-500/10">[m
+[31m-            <Clock className="h-4 w-4 text-blue-400" />[m
+[31m-            <AlertDescription className="text-blue-800">[m
+[31m-              <div className="space-y-1">[m
+[31m-                <div><strong>Números reservados:</strong> {reservedNumbers.join(', ')}</div>[m
+[31m-                <div><strong>Tiempo restante:</strong> {timeRemaining}</div>[m
+[32m+[m[32m        <div className="py-3 sm:py-4 space-y-3 sm:space-y-4">[m
+[32m+[m[32m          <div className="bg-gradient-to-r from-blue-500/20 via-blue-600/20 to-blue-700/20 backdrop-blur-sm border border-blue-500/30 rounded-xl p-3 sm:p-4">[m
+[32m+[m[32m            <div className="flex items-center justify-center sm:justify-start gap-2 mb-3">[m
+[32m+[m[32m              <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-blue-400" />[m
+[32m+[m[32m              <span className="text-blue-300 font-semibold text-sm sm:text-base">Información de Reservación</span>[m
+[32m+[m[32m            </div>[m
+[32m+[m[32m            <div className="space-y-3">[m
+[32m+[m[32m              <div className="text-center sm:text-left">[m
+[32m+[m[32m                <span className="text-blue-200 font-semibold text-sm sm:text-base block mb-2">Números reservados:</span>[m
+[32m+[m[32m                <div className="flex flex-wrap gap-2 justify-center sm:justify-start">[m
+[32m+[m[32m                  {reservedNumbers.map((num) => ([m
+[32m+[m[32m                    <span key={num} className="inline-block bg-gradient-to-r from-purple-500/30 to-blue-500/30 text-purple-300 font-bold text-base sm:text-lg px-2 sm:px-3 py-1 sm:py-2 rounded-lg sm:rounded-xl border border-purple-400/40 shadow-lg">[m
+[32m+[m[32m                      {num}[m
+[32m+[m[32m                    </span>[m
+[32m+[m[32m                  ))}[m
+[32m+[m[32m                </div>[m
+               </div>[m
+[31m-            </AlertDescription>[m
+[31m-          </Alert>[m
+[32m+[m[32m              <div className="text-blue-200 text-center sm:text-left text-sm sm:text-base">[m
+[32m+[m[32m                <strong>Tiempo restante:</strong> {timeRemaining}[m
+[32m+[m[32m              </div>[m
+[32m+[m[32m            </div>[m
+[32m+[m[32m          </div>[m
+ [m
+[31m-          <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-md">[m
+[31m-            <p className="text-sm text-amber-800">[m
+[31m-              <strong>⚠️ Advertencia:</strong> Al cancelar, estos números estarán disponibles inmediatamente para otros usuarios.[m
+[32m+[m[32m          <div className="bg-gradient-to-r from-orange-500/20 via-orange-600/20 to-orange-700/20 backdrop-blur-sm border border-orange-500/30 rounded-xl p-3 sm:p-4">[m
+[32m+[m[32m            <div className="flex items-center justify-center sm:justify-start gap-2 mb-2">[m
+[32m+[m[32m              <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-orange-400" />[m
+[32m+[m[32m              <span className="text-orange-300 font-semibold text-sm sm:text-base">Advertencia</span>[m
+[32m+[m[32m            </div>[m
+[32m+[m[32m            <p className="text-orange-200 text-xs sm:text-sm text-center sm:text-left">[m
+[32m+[m[32m              Al cancelar, estos números estarán disponibles inmediatamente para otros usuarios.[m
+             </p>[m
+           </div>[m
+         </div>[m
+ [m
+[31m-        <DialogFooter>[m
+[32m+[m[32m        <DialogFooter className="flex flex-col sm:flex-row gap-2 sm:gap-3">[m
+           <Button[m
+             variant="outline"[m
+             onClick={onClose}[m
+             disabled={isLoading}[m
+[31m-            className="flex-1"[m
+[32m+[m[32m            className="w-full sm:w-auto bg-gray-800/50 border-gray-600 text-gray-300 hover:bg-gray-700/50 hover:text-white transition-all duration-200 text-sm sm:text-base py-2 sm:py-2"[m
+           >[m
+             No, mantener reservación[m
+           </Button>[m
+[36m@@ -65,11 +81,11 @@[m [mexport function CancelReservationModal({[m
+             variant="destructive"[m
+             onClick={onConfirm}[m
+             disabled={isLoading}[m
+[31m-            className="flex-1"[m
+[32m+[m[32m            className="w-full sm:w-auto bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-semibold shadow-lg transition-all duration-200 text-sm sm:text-base py-2 sm:py-2"[m
+           >[m
+             {isLoading ? ([m
+               <>[m
+[31m-                <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />[m
+[32m+[m[32m                <div className="mr-2 h-3 w-3 sm:h-4 sm:w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />[m
+                 Cancelando...[m
+               </>[m
+             ) : ([m

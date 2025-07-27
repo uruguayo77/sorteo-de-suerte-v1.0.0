@@ -1,5 +1,5 @@
 -- =============================================
--- НАСТРОЙКА SUPABASE STORAGE ДЛЯ ИЗОБРАЖЕНИЙ
+-- НАСТРОЙКА SUPABASE STORAGE ДЛЯ ИЗОБРАЖЕНИЙ И ДОКУМЕНТОВ
 -- =============================================
 -- Выполните этот SQL в Supabase SQL Editor
 
@@ -11,6 +11,16 @@ VALUES (
   true, 
   5242880, -- 5MB лимит
   ARRAY['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif']
+) ON CONFLICT (id) DO NOTHING;
+
+-- 1a. Создаем bucket для компробанте (подтверждений оплаты)
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'payment-proofs', 
+  'payment-proofs', 
+  true, 
+  10485760, -- 10MB лимит
+  ARRAY['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif', 'application/pdf']
 ) ON CONFLICT (id) DO NOTHING;
 
 -- 2. Настройка RLS политик для bucket
@@ -42,7 +52,27 @@ USING (
   auth.role() = 'authenticated'
 );
 
--- 6. Проверяем созданный bucket
+-- === ПОЛИТИКИ ДЛЯ КОМПРОБАНТЕ ===
+
+-- 6. Публичный просмотр компробанте (для администраторов)
+CREATE POLICY "Публичный просмотр компробанте payment-proofs"
+ON storage.objects FOR SELECT
+USING (bucket_id = 'payment-proofs');
+
+-- 7. Разрешаем загрузку компробанте всем пользователям
+CREATE POLICY "Пользователи могут загружать компробанте payment-proofs"
+ON storage.objects FOR INSERT
+WITH CHECK (bucket_id = 'payment-proofs');
+
+-- 8. Разрешаем удаление компробанте администраторам
+CREATE POLICY "Админы могут удалять компробанте payment-proofs"
+ON storage.objects FOR DELETE
+USING (
+  bucket_id = 'payment-proofs' AND
+  auth.role() = 'authenticated'
+);
+
+-- 9. Проверяем созданные buckets
 SELECT 
   id,
   name,
@@ -50,7 +80,7 @@ SELECT
   file_size_limit,
   allowed_mime_types
 FROM storage.buckets
-WHERE id = 'lottery-images';
+WHERE id IN ('lottery-images', 'payment-proofs');
 
 -- 7. Проверяем политики
 SELECT 
