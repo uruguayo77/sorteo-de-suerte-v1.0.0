@@ -103,20 +103,62 @@ const Admin = () => {
     }
     
     // Фильтр по поисковому запросу
-    if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase()
-      return (
-        group.draw_name.toLowerCase().includes(searchLower) ||
-        group.applications.some(app => 
-          app.user_name.toLowerCase().includes(searchLower) ||
-          app.cedula.toLowerCase().includes(searchLower) ||
-          app.user_phone.includes(searchTerm) ||
-          app.numbers.some(num => num.toString().includes(searchTerm))
-        )
-      )
+    if (searchTerm && searchTerm.trim().length > 0) {
+      const searchLower = searchTerm.toLowerCase().trim()
+      console.log('🔍 Поиск:', { searchTerm, searchLower, groupName: group.draw_name })
+      
+      // Проверяем название розыгрыша
+      const matchesDrawName = group.draw_name?.toLowerCase().includes(searchLower) || false
+      
+      // Проверяем заявки в группе
+      const matchesApplications = group.applications?.some(app => {
+        if (!app) return false
+        
+        const nameMatch = app.user_name?.toLowerCase().includes(searchLower) || false
+        const cedulaMatch = app.cedula?.toLowerCase().includes(searchLower) || false
+        const phoneMatch = app.user_phone?.includes(searchTerm) || false
+        const numbersMatch = app.numbers?.some(num => 
+          num?.toString().includes(searchTerm)
+        ) || false
+        
+        console.log('🔍 Проверка заявки:', {
+          userName: app.user_name,
+          cedula: app.cedula,
+          phone: app.user_phone,
+          numbers: app.numbers,
+          nameMatch,
+          cedulaMatch,
+          phoneMatch,
+          numbersMatch
+        })
+        
+        return nameMatch || cedulaMatch || phoneMatch || numbersMatch
+      }) || false
+      
+      const result = matchesDrawName || matchesApplications
+      console.log('🔍 Результат фильтрации группы:', { 
+        drawName: group.draw_name, 
+        matchesDrawName, 
+        matchesApplications, 
+        result,
+        applicationsCount: group.applications?.length
+      })
+      
+      return result
     }
     
     return true
+  })
+
+  // Логируем результаты фильтрации
+  console.log('🔍 Состояние поиска:', {
+    searchTerm,
+    selectedDrawId,
+    totalGroups: groupedApplications?.length,
+    filteredGroups: filteredGroupedApplications?.length,
+    isLoading: groupedLoading,
+    hasGroupedApplications: !!groupedApplications,
+    searchTermLength: searchTerm?.length || 0
   })
 
   if (authLoading || applicationsLoading || groupedLoading) {
@@ -245,7 +287,10 @@ const Admin = () => {
                       type="text"
                       placeholder="Buscar por nombre, cédula, teléfono, números..."
                       value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
+                      onChange={(e) => {
+                        console.log('🔍 Обновление поискового запроса:', e.target.value)
+                        setSearchTerm(e.target.value)
+                      }}
                       className="w-full pl-10 pr-4 py-3 bg-white/10 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                     />
                   </div>
@@ -268,18 +313,33 @@ const Admin = () => {
                   </div>
                 </div>
                 
-                {/* Botón limpiar filtros */}
-                {(searchTerm || selectedDrawId) && (
-                  <button
-                    onClick={() => {
-                      setSearchTerm('')
-                      setSelectedDrawId(null)
-                    }}
-                    className="text-purple-400 hover:text-purple-300 text-sm font-medium"
-                  >
-                    Limpiar filtros
-                  </button>
-                )}
+                {/* Botón limpiar filtros y contador */}
+                <div className="flex items-center justify-between">
+                  {(searchTerm || selectedDrawId) && (
+                    <button
+                      onClick={() => {
+                        console.log('🔍 Limpiando filtros')
+                        setSearchTerm('')
+                        setSelectedDrawId(null)
+                      }}
+                      className="text-purple-400 hover:text-purple-300 text-sm font-medium flex items-center gap-2"
+                    >
+                      <X className="w-4 h-4" />
+                      Limpiar filtros
+                    </button>
+                  )}
+                  
+                  {/* Contador de resultados */}
+                  {groupedApplications && (
+                    <div className="text-gray-400 text-sm">
+                      {searchTerm || selectedDrawId ? (
+                        <>Mostrando {filteredGroupedApplications?.length || 0} de {groupedApplications.length} sorteos</>
+                      ) : (
+                        <>Total: {groupedApplications.length} sorteos</>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {filteredGroupedApplications && filteredGroupedApplications.length > 0 ? (
