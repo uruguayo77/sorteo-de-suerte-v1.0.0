@@ -2,13 +2,15 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, ArrowLeft } from "lucide-react";
 import { motion } from "framer-motion";
+import QRCodeDisplay from "./QRCodeDisplay";
 
 interface SuccessMessageProps {
   selectedNumbers: number[];
   onRestart: () => void;
+  applicationId?: string;
 }
 
-const SuccessMessage = ({ selectedNumbers, onRestart }: SuccessMessageProps) => {
+const SuccessMessage = ({ selectedNumbers, onRestart, applicationId }: SuccessMessageProps) => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 relative overflow-hidden">
       {/* Abstract background shapes */}
@@ -103,6 +105,17 @@ const SuccessMessage = ({ selectedNumbers, onRestart }: SuccessMessageProps) => 
                 </div>
               </div>
             </motion.div>
+
+            {/* QR Code Section */}
+            {applicationId && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.7 }}
+              >
+                <QRCodeDisplay applicationId={applicationId} />
+              </motion.div>
+            )}
 
             {/* Action Button */}
             <motion.div

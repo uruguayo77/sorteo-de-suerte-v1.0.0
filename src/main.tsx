@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/sonner";
 import Index from "./pages/Index.tsx";
 import Admin from "./pages/Admin.tsx";
 import AdminLogin from "./pages/AdminLogin.tsx";
+import QRVerification from "./pages/QRVerification.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import "./index.css";
 import { useLotteryStore } from "./lib/lotteryStore";
@@ -22,6 +23,7 @@ createRoot(document.getElementById("root")!).render(
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
+          <Route path="/verificar" element={<QRVerification />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="*" element={<NotFound />} />

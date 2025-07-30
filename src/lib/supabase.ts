@@ -94,6 +94,8 @@ export interface Application {
   admin_notes?: string
   draw_id?: string | null
   reserved_until?: string // Временная блокировка на 15 минут
+  qr_code_token?: string // QR токен для верификации
+  qr_generated_at?: string // Время создания QR кода
   created_at: string
   updated_at: string
 }

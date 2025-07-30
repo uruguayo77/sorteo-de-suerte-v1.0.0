@@ -541,6 +541,7 @@ const Index = () => {
             <SuccessMessage
               selectedNumbers={selectedNumbers}
               onRestart={handleRestart}
+              applicationId={reservationId || undefined}
             />
           </div>
         );
