@@ -159,9 +159,9 @@ class QRService {
       return false
     }
 
-    // Проверяем что токен содержит алфавитно-цифровые символы и подчеркивание
-    const tokenRegex = /^[a-zA-Z0-9_]+$/
-    return tokenRegex.test(token) && token.length > 10
+    // Проверяем что токен содержит алфавитно-цифровые символы, подчеркивание и дефисы
+    const tokenRegex = /^[a-zA-Z0-9_-]+$/
+    return tokenRegex.test(token) && token.length > 5 // Уменьшили минимальную длину
   }
 
   /**

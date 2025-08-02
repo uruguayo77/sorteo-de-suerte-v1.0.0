@@ -39,6 +39,7 @@ const Index = () => {
   const [showWinnerNotification, setShowWinnerNotification] = useState(false);
   const [reservationId, setReservationId] = useState<string | null>(null);
   const [isReserving, setIsReserving] = useState(false);
+  const [isQuickActionsOpen, setIsQuickActionsOpen] = useState(false);
   const { toast } = useToast();
   const { data: winners } = useWinners();
   const { isAuthenticated } = useAdminAuth();
@@ -428,47 +429,102 @@ const Index = () => {
               </div>
             </div>
 
-            {/* Admin Panel Access - fixed в правом верхнем углу */}
+            {/* Выдвижная шторка с кнопками управления */}
             <div className="fixed top-4 right-4 z-[9999]">
-              {isAuthenticated ? (
-                <Link to="/admin">
-                  <Button
-                    className="bg-gray-800/95 hover:bg-gray-700 text-white border border-gray-600 p-3 shadow-xl backdrop-blur-md transition-all duration-200 hover:scale-105 rounded-xl"
-                    size="sm"
+              <div className={`flex flex-col items-end transition-all duration-300 ease-in-out ${
+                isQuickActionsOpen 
+                  ? 'bg-gray-800/90 backdrop-blur-md rounded-2xl p-2 shadow-2xl border border-gray-600/50' 
+                  : ''
+              }`}>
+                
+                {/* Кнопка-триггер шторки */}
+                <Button
+                  onClick={() => setIsQuickActionsOpen(!isQuickActionsOpen)}
+                  className="bg-gray-800/95 hover:bg-gray-700 text-white border border-gray-600 p-3 shadow-xl backdrop-blur-md transition-all duration-200 hover:scale-105 rounded-full mb-2"
+                  size="sm"
+                >
+                  <svg 
+                    xmlns="http://www.w3.org/2000/svg" 
+                    width="20" 
+                    height="20" 
+                    viewBox="0 0 24 24" 
+                    fill="none"
+                    className={`transition-transform duration-200 ${isQuickActionsOpen ? 'rotate-180' : ''}`}
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none">
-                      <g clipPath="url(#clip0_3111_32640)">
-                        <path d="M15.02 3.01001C14.18 2.37001 13.14 2 12 2C9.24 2 7 4.24 7 7C7 9.76 9.24 12 12 12C14.76 12 17 9.76 17 7" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                        <path d="M20.59 22C20.59 18.13 16.74 15 12 15C7.26 15 3.41 18.13 3.41 22" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                      </g>
-                      <defs>
-                        <clipPath id="clip0_3111_32640">
-                          <rect width="24" height="24" fill="white"/>
-                        </clipPath>
-                      </defs>
-                    </svg>
-                  </Button>
-                </Link>
-              ) : (
-                <Link to="/admin/login">
-                  <Button
-                    className="bg-gray-800/95 hover:bg-gray-700 text-white border border-gray-600 p-3 shadow-xl backdrop-blur-md transition-all duration-200 hover:scale-105 rounded-xl"
-                    size="sm"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none">
-                      <g clipPath="url(#clip0_3111_32640)">
-                        <path d="M15.02 3.01001C14.18 2.37001 13.14 2 12 2C9.24 2 7 4.24 7 7C7 9.76 9.24 12 12 12C14.76 12 17 9.76 17 7" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                        <path d="M20.59 22C20.59 18.13 16.74 15 12 15C7.26 15 3.41 18.13 3.41 22" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                      </g>
-                      <defs>
-                        <clipPath id="clip0_3111_32640">
-                          <rect width="24" height="24" fill="white"/>
-                        </clipPath>
-                      </defs>
-                    </svg>
-                  </Button>
-                </Link>
-              )}
+                    <path d="M6 9l6 6 6-6" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </Button>
+
+                {/* Выдвижной контент */}
+                <div className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                  isQuickActionsOpen ? 'max-h-32 opacity-100' : 'max-h-0 opacity-0'
+                }`}>
+                  <div className="flex flex-col gap-2">
+                    
+                    {/* Кнопка админ панели */}
+                    {isAuthenticated ? (
+                      <Link to="/admin">
+                        <Button
+                          className="bg-gray-700/90 hover:bg-gray-600 text-white border border-gray-500 p-3 shadow-lg backdrop-blur-md transition-all duration-200 hover:scale-105 rounded-full w-full"
+                          size="sm"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none">
+                            <g clipPath="url(#clip0_admin)">
+                              <path d="M15.02 3.01001C14.18 2.37001 13.14 2 12 2C9.24 2 7 4.24 7 7C7 9.76 9.24 12 12 12C14.76 12 17 9.76 17 7" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                              <path d="M20.59 22C20.59 18.13 16.74 15 12 15C7.26 15 3.41 18.13 3.41 22" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                            </g>
+                            <defs>
+                              <clipPath id="clip0_admin">
+                                <rect width="24" height="24" fill="white"/>
+                              </clipPath>
+                            </defs>
+                          </svg>
+                        </Button>
+                      </Link>
+                    ) : (
+                      <Link to="/admin/login">
+                        <Button
+                          className="bg-gray-700/90 hover:bg-gray-600 text-white border border-gray-500 p-3 shadow-lg backdrop-blur-md transition-all duration-200 hover:scale-105 rounded-full w-full"
+                          size="sm"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none">
+                            <g clipPath="url(#clip0_admin_login)">
+                              <path d="M15.02 3.01001C14.18 2.37001 13.14 2 12 2C9.24 2 7 4.24 7 7C7 9.76 9.24 12 12 12C14.76 12 17 9.76 17 7" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                              <path d="M20.59 22C20.59 18.13 16.74 15 12 15C7.26 15 3.41 18.13 3.41 22" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                            </g>
+                            <defs>
+                              <clipPath id="clip0_admin_login">
+                                <rect width="24" height="24" fill="white"/>
+                              </clipPath>
+                            </defs>
+                          </svg>
+                        </Button>
+                      </Link>
+                    )}
+
+                    {/* Кнопка поддержки */}
+                    <Button
+                      onClick={() => window.open('https://t.me/delivery_ccs', '_blank')}
+                      className="bg-gray-700/90 hover:bg-gray-600 text-white border border-gray-500 p-3 shadow-lg backdrop-blur-md transition-all duration-200 hover:scale-105 rounded-full w-full"
+                      size="sm"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none">
+                        <g clipPath="url(#clip0_support)">
+                          <path d="M3 4.96997C3 3.32997 4.34 2 6 2H18C19.66 2 21 3.32997 21 4.96997V15.88C21 17.52 19.66 18.85 18 18.85H17.24C16.44 18.85 15.68 19.16 15.12 19.72L13.41 21.41C12.63 22.18 11.36 22.18 10.58 21.41L8.87 19.72C8.31 19.16 7.54 18.85 6.75 18.85H6C4.34 18.85 3 17.52 3 15.88V9.06995" stroke="#fff" strokeWidth="1.5" strokeMiterlimit="10" strokeLinecap="round" strokeLinejoin="round" />
+                          <path d="M7 9.16077C7 8.23077 7.76 7.4707 8.69 7.4707C9.62 7.4707 10.38 8.23077 10.38 9.16077C10.38 11.0408 7.71 11.2408 7.12 13.0308C7 13.4008 7.31 13.7708 7.7 13.7708H10.38" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                          <path d="M16.0398 13.7608V8.05088C16.0398 7.79088 15.8698 7.56083 15.6198 7.49083C15.3698 7.42083 15.0998 7.52083 14.9598 7.74083C14.2398 8.90083 13.4598 10.2208 12.7798 11.3808C12.6698 11.5708 12.6698 11.8208 12.7798 12.0108C12.8898 12.2008 13.0998 12.3208 13.3298 12.3208H16.9998" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                        </g>
+                        <defs>
+                          <clipPath id="clip0_support">
+                            <rect width="24" height="24" fill="white"/>
+                          </clipPath>
+                        </defs>
+                      </svg>
+                    </Button>
+
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         );

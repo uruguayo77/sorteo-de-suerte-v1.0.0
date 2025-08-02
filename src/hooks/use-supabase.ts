@@ -833,12 +833,18 @@ export function useApplicationsGroupedByDraw() {
         applications: ApplicationWithDraw[]
       }>)
       
-      // Конвертируем в массив и сортируем по дате розыгрыша
+      // Конвертируем в массив и сортируем по самой новой заявке в каждой группе
       return Object.values(grouped).sort((a, b) => {
-        if (!a.draw_date && !b.draw_date) return 0
-        if (!a.draw_date) return 1
-        if (!b.draw_date) return -1
-        return new Date(b.draw_date).getTime() - new Date(a.draw_date).getTime()
+        // Находим самую новую заявку в каждой группе
+        const getLatestApplicationDate = (applications: ApplicationWithDraw[]) => {
+          return Math.max(...applications.map(app => new Date(app.created_at).getTime()))
+        }
+        
+        const latestDateA = getLatestApplicationDate(a.applications)
+        const latestDateB = getLatestApplicationDate(b.applications)
+        
+        // Сортируем по убыванию (новые розыгрыши сверху)
+        return latestDateB - latestDateA
       })
     }
   })

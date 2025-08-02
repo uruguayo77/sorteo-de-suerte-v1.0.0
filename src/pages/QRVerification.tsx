@@ -30,6 +30,7 @@ import {
   useQRValidation,
   useRealtimeStatusUpdates
 } from '@/hooks/use-qr-verification';
+import InstantTicketsSection from '@/components/InstantTicketsSection';
 import { toast } from 'sonner';
 
 const QRVerification = () => {
@@ -345,6 +346,12 @@ const QRVerification = () => {
             </Card>
           </motion.div>
         )}
+
+        {/* Instant Tickets Section */}
+        <InstantTicketsSection 
+          applicationId={verificationData?.id}
+          applicationStatus={statusInfo.status}
+        />
 
         {/* Actions */}
         <motion.div

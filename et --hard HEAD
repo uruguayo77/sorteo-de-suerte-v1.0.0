@@ -1,0 +1,5 @@
+[33m87e97e2[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m feat: Integración completa del sistema QR y actualización de soporte
+[33mf2c5e03[m Actualizar datos de pago móvil en PaymentDetails
+[33m1d76c88[m Actualizar favicon con nuevo diseño de Radius y mejorar modal de onboarding
+[33m4308b79[m feat: rebrand to Radius - complete Lovable removal
+[33md3b22af[m feat: настройка отдельной ссылки для админ-панели

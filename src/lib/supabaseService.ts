@@ -1,4 +1,4 @@
-import { supabase, DatabaseLotteryHistory, DatabaseActiveLottery } from './supabase'
+import { supabase, DatabaseLotteryHistory, DatabaseActiveLottery, InstantTicket } from './supabase'
 import { LotteryHistory } from './lotteryStore'
 
 export class SupabaseService {
@@ -359,6 +359,217 @@ export class SupabaseService {
       total_participants: appEntry.totalParticipants,
       participant_numbers: appEntry.participantNumbers,
       reason: appEntry.reason
+    }
+  }
+
+  // ============================================
+  // INSTANT TICKETS (SCRATCH ЛОТЕРЕЯ)
+  // ============================================
+
+  // Получение билетов для заявки
+  static async getInstantTicketsByApplication(applicationId: string) {
+    try {
+      const { data, error } = await supabase
+        .from('instant_tickets')
+        .select('*')
+        .eq('application_id', applicationId)
+        .order('created_at', { ascending: true })
+
+      if (error) {
+        console.error('❌ Ошибка получения instant tickets:', error)
+        throw error
+      }
+
+      console.log('✅ Загружено билетов:', data?.length || 0)
+      return data || []
+    } catch (error) {
+      console.error('❌ Ошибка в getInstantTicketsByApplication:', error)
+      return []
+    }
+  }
+
+  // Стирание билета (открытие)
+  static async scratchTicket(ticketId: string): Promise<boolean> {
+    try {
+      console.log('🔄 Начинаем обновление билета в БД:', ticketId)
+      
+      const { data, error, count } = await supabase
+        .from('instant_tickets')
+        .update({ 
+          is_scratched: true,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', ticketId)
+        .eq('is_scratched', false) // Только нестертые билеты
+        .select('*')
+
+      console.log('📊 Результат обновления БД:', {
+        data,
+        error,
+        count,
+        updatedRows: data?.length || 0
+      })
+
+      if (error) {
+        console.error('❌ Ошибка стирания билета:', error)
+        throw error
+      }
+
+      if (!data || data.length === 0) {
+        console.warn('⚠️ Нет обновленных строк - возможно билет уже стерт')
+        // Проверяем существует ли билет
+        const { data: existing } = await supabase
+          .from('instant_tickets')
+          .select('*')
+          .eq('id', ticketId)
+          .single()
+        
+        console.log('🔍 Существующий билет:', existing)
+        
+        if (existing?.is_scratched) {
+          console.log('✅ Билет уже стерт - возвращаем успех')
+          return true // Билет уже стерт = успешный результат
+        }
+        
+        console.error('❌ Билет не найден или не может быть стерт')
+        return false
+      }
+
+      console.log('✅ Билет успешно стерт в БД:', data[0])
+      return true
+    } catch (error) {
+      console.error('❌ Ошибка в scratchTicket:', error)
+      return false
+    }
+  }
+
+  // Отметка приза как полученного
+  static async claimPrize(ticketId: string): Promise<boolean> {
+    try {
+      // Сначала проверяем что билет выигрышный и не выплачен
+      const { data: ticket, error: fetchError } = await supabase
+        .from('instant_tickets')
+        .select('id, is_winner, is_claimed')
+        .eq('id', ticketId)
+        .eq('is_winner', true)
+        .eq('is_claimed', false)
+        .single()
+
+      if (fetchError || !ticket) {
+        console.error('❌ Билет не найден или уже выплачен:', fetchError)
+        return false
+      }
+
+      // Обновляем статус выплаты (убираем проверку is_scratched, так как она гибридная)
+      const { error } = await supabase
+        .from('instant_tickets')
+        .update({ 
+          is_claimed: true,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', ticketId)
+        .eq('is_winner', true)
+        .eq('is_claimed', false)
+
+      if (error) {
+        console.error('❌ Ошибка обновления выплаты:', error)
+        throw error
+      }
+
+      console.log('✅ Приз отмечен как выплаченный:', ticketId)
+      return true
+    } catch (error) {
+      console.error('❌ Ошибка в claimPrize:', error)
+      return false
+    }
+  }
+
+  // Получение всех билетов для админа
+  static async getAllInstantTickets(filters?: {
+    is_winner?: boolean
+    is_scratched?: boolean  
+    is_claimed?: boolean
+    limit?: number
+  }) {
+    try {
+      let query = supabase
+        .from('instant_tickets')
+        .select(`
+          *,
+          applications:application_id (
+            user_name,
+            user_phone,
+            cedula,
+            numbers,
+            status
+          )
+        `)
+        .order('created_at', { ascending: false })
+
+      // Применяем фильтры
+      if (filters?.is_winner !== undefined) {
+        query = query.eq('is_winner', filters.is_winner)
+      }
+      if (filters?.is_scratched !== undefined) {
+        query = query.eq('is_scratched', filters.is_scratched)
+      }
+      if (filters?.is_claimed !== undefined) {
+        query = query.eq('is_claimed', filters.is_claimed)
+      }
+      if (filters?.limit) {
+        query = query.limit(filters.limit)
+      }
+
+      const { data, error } = await query
+
+      if (error) {
+        console.error('❌ Ошибка получения всех билетов:', error)
+        throw error
+      }
+
+      console.log('✅ Загружено билетов для админа:', data?.length || 0)
+      return data || []
+    } catch (error) {
+      console.error('❌ Ошибка в getAllInstantTickets:', error)
+      return []
+    }
+  }
+
+  // Статистика instant tickets
+  static async getInstantTicketsStats() {
+    try {
+      const { data, error } = await supabase
+        .from('instant_tickets')
+        .select('prize_type, prize_amount, is_winner, is_scratched, is_claimed')
+
+      if (error) {
+        console.error('❌ Ошибка получения статистики билетов:', error)
+        throw error
+      }
+
+      const stats = {
+        total: data.length,
+        scratched: data.filter(t => t.is_scratched).length,
+        winners: data.filter(t => t.is_winner).length,
+        claimed: data.filter(t => t.is_claimed).length,
+        totalPrizeAmount: data
+          .filter(t => t.is_winner)
+          .reduce((sum, t) => sum + parseFloat(t.prize_amount), 0),
+        claimedPrizeAmount: data
+          .filter(t => t.is_claimed)
+          .reduce((sum, t) => sum + parseFloat(t.prize_amount), 0),
+        prizesByType: {
+          small: data.filter(t => t.prize_type === 'small' && t.is_winner).length,
+          medium: data.filter(t => t.prize_type === 'medium' && t.is_winner).length,
+          large: data.filter(t => t.prize_type === 'large' && t.is_winner).length
+        }
+      }
+
+      console.log('✅ Статистика билетов загружена:', stats)
+      return stats
+    } catch (error) {
+      console.error('❌ Ошибка в getInstantTicketsStats:', error)
+      return null
     }
   }
 

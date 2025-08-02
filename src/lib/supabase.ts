@@ -190,6 +190,21 @@ export interface ParticipantSelection {
   selected_at: string
 }
 
+// Моментальные лотерейные билеты (scratch лотерея)
+export interface InstantTicket {
+  id: string
+  application_id: string
+  ticket_number: string
+  barcode: string
+  prize_type: 'none' | 'small' | 'medium' | 'large'
+  prize_amount: number
+  is_winner: boolean
+  is_scratched: boolean
+  is_claimed: boolean
+  created_at: string
+  updated_at: string
+}
+
 // ============ ТИПЫ ДЛЯ СОЗДАНИЯ ============
 
 export interface CreateApplicationData {
