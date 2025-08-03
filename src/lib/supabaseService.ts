@@ -493,17 +493,8 @@ export class SupabaseService {
   }) {
     try {
       let query = supabase
-        .from('instant_tickets')
-        .select(`
-          *,
-          applications:application_id (
-            user_name,
-            user_phone,
-            cedula,
-            numbers,
-            status
-          )
-        `)
+        .from('v_instant_tickets_with_draw')
+        .select('*')
         .order('created_at', { ascending: false })
 
       // Применяем фильтры

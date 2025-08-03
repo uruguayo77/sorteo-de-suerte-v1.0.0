@@ -574,6 +574,11 @@ const InstantTicketsAdmin: React.FC = () => {
                               {formatDate(group.draw_date)}
                             </span>
                           )}
+                          {group.draw_prize_description && (
+                            <span className="text-yellow-400">
+                              {group.draw_prize_description}
+                            </span>
+                          )}
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                             group.draw_status === 'finished' ? 'bg-green-500/20 text-green-300' :
                             group.draw_status === 'active' ? 'bg-orange-500/20 text-orange-300' :
@@ -581,7 +586,8 @@ const InstantTicketsAdmin: React.FC = () => {
                             'bg-gray-500/20 text-gray-300'
                           }`}>
                             {group.draw_status === 'finished' ? 'Finalizado' :
-                             group.draw_status === 'active' ? 'Activo' : 'Cancelado'}
+                             group.draw_status === 'active' ? 'Activo' : 
+                             group.draw_status === 'scheduled' ? 'Programado' : 'Cancelado'}
                           </span>
                         </div>
                       </div>
@@ -603,12 +609,12 @@ const InstantTicketsAdmin: React.FC = () => {
                   </div>
                   
                   {/* Información del ganador si existe */}
-                  {group.winner_number && (
+                  {group.draw_winner_number && (
                     <div className="mt-3 p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
                       <div className="flex items-center gap-2 text-green-300">
                         <Trophy className="w-4 h-4" />
-                        <span className="font-medium">Ganador: #{group.winner_number}</span>
-                        {group.winner_name && <span>- {group.winner_name}</span>}
+                        <span className="font-medium">Ganador: #{group.draw_winner_number}</span>
+                        {group.draw_winner_name && <span>- {group.draw_winner_name}</span>}
                       </div>
                     </div>
                   )}

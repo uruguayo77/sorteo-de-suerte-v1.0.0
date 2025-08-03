@@ -167,7 +167,7 @@ export function useInstantTicketsGroupedByDraw() {
       // Группируем билеты по розыгрышам
       const grouped = tickets.reduce((acc, ticket) => {
         const drawKey = ticket.draw_id || 'no-draw'
-        const drawName = ticket.draw_name || 'Без розыгрыша'
+        const drawName = ticket.draw_name || 'Sin sorteo asignado'
         
         if (!acc[drawKey]) {
           acc[drawKey] = {
@@ -175,9 +175,9 @@ export function useInstantTicketsGroupedByDraw() {
             draw_name: drawName,
             draw_date: ticket.draw_date,
             draw_status: ticket.draw_status,
-            prize_description: ticket.prize_description,
-            winner_number: ticket.winner_number,
-            winner_name: ticket.winner_name,
+            draw_prize_description: ticket.draw_prize_description,
+            draw_winner_number: ticket.draw_winner_number,
+            draw_winner_name: ticket.draw_winner_name,
             tickets: []
           }
         }
@@ -189,9 +189,9 @@ export function useInstantTicketsGroupedByDraw() {
         draw_name: string
         draw_date?: string
         draw_status?: string
-        prize_description?: string
-        winner_number?: number
-        winner_name?: string
+        draw_prize_description?: string
+        draw_winner_number?: number
+        draw_winner_name?: string
         tickets: any[]
       }>)
       
