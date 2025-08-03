@@ -157,6 +157,63 @@ export function useInstantTicketsStats() {
   })
 }
 
+// Хук для группировки билетов по розыгрышам
+export function useInstantTicketsGroupedByDraw() {
+  return useQuery({
+    queryKey: ['instant-tickets-grouped-by-draw'],
+    queryFn: async () => {
+      const tickets = await SupabaseService.getAllInstantTickets()
+      
+      // Группируем билеты по розыгрышам
+      const grouped = tickets.reduce((acc, ticket) => {
+        const drawKey = ticket.draw_id || 'no-draw'
+        const drawName = ticket.draw_name || 'Без розыгрыша'
+        
+        if (!acc[drawKey]) {
+          acc[drawKey] = {
+            draw_id: ticket.draw_id,
+            draw_name: drawName,
+            draw_date: ticket.draw_date,
+            draw_status: ticket.draw_status,
+            prize_description: ticket.prize_description,
+            winner_number: ticket.winner_number,
+            winner_name: ticket.winner_name,
+            tickets: []
+          }
+        }
+        
+        acc[drawKey].tickets.push(ticket)
+        return acc
+      }, {} as Record<string, {
+        draw_id: string | null
+        draw_name: string
+        draw_date?: string
+        draw_status?: string
+        prize_description?: string
+        winner_number?: number
+        winner_name?: string
+        tickets: any[]
+      }>)
+      
+      // Конвертируем в массив и сортируем по самой новой заявке в каждой группе
+      return Object.values(grouped).sort((a, b) => {
+        // Находим самую новую заявку в каждой группе
+        const getLatestTicketDate = (tickets: any[]) => {
+          return Math.max(...tickets.map(ticket => new Date(ticket.created_at).getTime()))
+        }
+        
+        const latestDateA = getLatestTicketDate(a.tickets)
+        const latestDateB = getLatestTicketDate(b.tickets)
+        
+        // Сортируем по убыванию (новые розыгрыши сверху)
+        return latestDateB - latestDateA
+      })
+    },
+    refetchInterval: 10000, // Обновляем каждые 10 секунд
+    staleTime: 5000 // Данные считаются свежими 5 секунд
+  })
+}
+
 // Утилиты для работы с билетами
 export const InstantTicketUtils = {
   // Форматирование суммы приза

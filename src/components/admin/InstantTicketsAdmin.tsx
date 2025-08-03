@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { 
   useInstantTicketsAdmin, 
   useInstantTicketsStats,
+  useInstantTicketsGroupedByDraw,
   useClaimPrize,
   InstantTicketUtils
 } from '@/hooks/use-instant-tickets'
@@ -23,7 +24,9 @@ import {
   Hash,
   Calendar,
   Banknote,
-  Clock
+  Clock,
+  X,
+  Filter
 } from 'lucide-react'
 
 const InstantTicketsAdmin: React.FC = () => {
@@ -35,9 +38,11 @@ const InstantTicketsAdmin: React.FC = () => {
   }>({ limit: 50 })
   
   const [searchQuery, setSearchQuery] = useState('')
+  const [selectedDrawId, setSelectedDrawId] = useState<string | null>(null)
   const [forceUpdate, setForceUpdate] = useState(0)
 
   const { data: tickets, isLoading: ticketsLoading, error } = useInstantTicketsAdmin(filters)
+  const { data: groupedTickets, isLoading: groupedLoading } = useInstantTicketsGroupedByDraw()
   const { data: stats, isLoading: statsLoading } = useInstantTicketsStats()
   const claimPrizeMutation = useClaimPrize()
 
@@ -82,71 +87,144 @@ const InstantTicketsAdmin: React.FC = () => {
     }
   }, [])
 
-  // Фильтрация и поиск билетов с учетом localStorage
-  const filteredTickets = useMemo(() => {
-    if (!tickets) return []
+  // Фильтрация и поиск билетов с учетом localStorage и группировки
+  const filteredGroupedTickets = useMemo(() => {
+    if (!groupedTickets) return []
     
     console.log('🔍 Применяем фильтры:', filters)
     
-    const result = tickets.filter(ticket => {
-      // 1. Применяем фильтры состояния (учитываем localStorage)
-      const isReallyScratched = isTicketScratched(ticket)
-      
-      // Фильтр по стертости
-      if (filters.is_scratched !== undefined) {
-        if (filters.is_scratched && !isReallyScratched) return false
-        if (!filters.is_scratched && isReallyScratched) return false
+    const result = groupedTickets.map(group => {
+      // Фильтр по выбранному розыгрышу
+      if (selectedDrawId && group.draw_id !== selectedDrawId) {
+        return null
       }
       
-      // Фильтр по выигрышности
-      if (filters.is_winner !== undefined) {
-        if (filters.is_winner && !ticket.is_winner) return false
-        if (!filters.is_winner && ticket.is_winner) return false
+      // Фильтруем билеты в группе
+      let filteredTickets = group.tickets
+      
+      if (searchQuery && searchQuery.trim().length > 0) {
+        const searchLower = searchQuery.toLowerCase().trim()
+        
+        // Проверяем название розыгрыша
+        const matchesDrawName = group.draw_name?.toLowerCase().includes(searchLower) || false
+        
+        if (matchesDrawName) {
+          // Если название розыгрыша совпадает, показываем все билеты в этой группе
+          filteredTickets = group.tickets
+        } else {
+          // Иначе фильтруем билеты по содержимому
+          filteredTickets = group.tickets.filter(ticket => {
+            const isReallyScratched = isTicketScratched(ticket)
+            
+            // 1. Применяем фильтры состояния (учитываем localStorage)
+            // Фильтр по стертости
+            if (filters.is_scratched !== undefined) {
+              if (filters.is_scratched && !isReallyScratched) return false
+              if (!filters.is_scratched && isReallyScratched) return false
+            }
+            
+            // Фильтр по выигрышности
+            if (filters.is_winner !== undefined) {
+              if (filters.is_winner && !ticket.is_winner) return false
+              if (!filters.is_winner && ticket.is_winner) return false
+            }
+            
+            // Фильтр по выплатам
+            if (filters.is_claimed !== undefined) {
+              if (filters.is_claimed && !ticket.is_claimed) return false
+              if (!filters.is_claimed && ticket.is_claimed) return false
+            }
+            
+            // Дополнительная логика для фильтра "Raspados" - показываем только невыигрышные стертые
+            if (filters.is_scratched === true && filters.is_winner === undefined) {
+              if (ticket.is_winner) return false // Исключаем выигрышные из "Raspados"
+            }
+            
+            // Дополнительная логика для фильтра "Entregados" - показываем только стертые и выплаченные
+            if (filters.is_winner === true && filters.is_claimed === true && filters.is_scratched === undefined) {
+              if (!isReallyScratched) return false // Исключаем нестертые из "Entregados"
+            }
+            
+            // Дополнительная логика для фильтра "Pendientes de entregar" - показываем только стертые и невыплаченные
+            if (filters.is_winner === true && filters.is_claimed === false && filters.is_scratched === undefined) {
+              if (!isReallyScratched) return false // Исключаем нестертые из "Pendientes"
+            }
+            
+            // 2. Применяем поиск
+            const query = searchQuery.toLowerCase().trim()
+            if (!query) return true
+            
+            // Поиск по различным полям
+            const searchFields = [
+              ticket.ticket_number?.toLowerCase(),
+              ticket.barcode?.toLowerCase(),
+              ticket.applications?.user_name?.toLowerCase(),
+              ticket.applications?.user_phone?.toLowerCase(),
+              ticket.applications?.cedula?.toLowerCase(),
+              ticket.applications?.numbers?.join(' ')?.toLowerCase(),
+              ticket.prize_amount?.toString()
+            ].filter(Boolean)
+            
+            return searchFields.some(field => field?.includes(query))
+          })
+        }
+      } else {
+        // Если нет поиска, применяем только фильтры состояния
+        filteredTickets = group.tickets.filter(ticket => {
+          const isReallyScratched = isTicketScratched(ticket)
+          
+          // Фильтр по стертости
+          if (filters.is_scratched !== undefined) {
+            if (filters.is_scratched && !isReallyScratched) return false
+            if (!filters.is_scratched && isReallyScratched) return false
+          }
+          
+          // Фильтр по выигрышности
+          if (filters.is_winner !== undefined) {
+            if (filters.is_winner && !ticket.is_winner) return false
+            if (!filters.is_winner && ticket.is_winner) return false
+          }
+          
+          // Фильтр по выплатам
+          if (filters.is_claimed !== undefined) {
+            if (filters.is_claimed && !ticket.is_claimed) return false
+            if (!filters.is_claimed && ticket.is_claimed) return false
+          }
+          
+          // Дополнительная логика для фильтра "Raspados" - показываем только невыигрышные стертые
+          if (filters.is_scratched === true && filters.is_winner === undefined) {
+            if (ticket.is_winner) return false // Исключаем выигрышные из "Raspados"
+          }
+          
+          // Дополнительная логика для фильтра "Entregados" - показываем только стертые и выплаченные
+          if (filters.is_winner === true && filters.is_claimed === true && filters.is_scratched === undefined) {
+            if (!isReallyScratched) return false // Исключаем нестертые из "Entregados"
+          }
+          
+          // Дополнительная логика для фильтра "Pendientes de entregar" - показываем только стертые и невыплаченные
+          if (filters.is_winner === true && filters.is_claimed === false && filters.is_scratched === undefined) {
+            if (!isReallyScratched) return false // Исключаем нестертые из "Pendientes"
+          }
+          
+          return true
+        })
       }
       
-      // Фильтр по выплатам
-      if (filters.is_claimed !== undefined) {
-        if (filters.is_claimed && !ticket.is_claimed) return false
-        if (!filters.is_claimed && ticket.is_claimed) return false
+      // Возвращаем группу только если есть билеты после фильтрации
+      if (filteredTickets.length > 0) {
+        return {
+          ...group,
+          tickets: filteredTickets
+        }
       }
       
-      // Дополнительная логика для фильтра "Raspados" - показываем только невыигрышные стертые
-      if (filters.is_scratched === true && filters.is_winner === undefined) {
-        if (ticket.is_winner) return false // Исключаем выигрышные из "Raspados"
-      }
-      
-      // Дополнительная логика для фильтра "Entregados" - показываем только стертые и выплаченные
-      if (filters.is_winner === true && filters.is_claimed === true && filters.is_scratched === undefined) {
-        if (!isReallyScratched) return false // Исключаем нестертые из "Entregados"
-      }
-      
-      // Дополнительная логика для фильтра "Pendientes de entregar" - показываем только стертые и невыплаченные
-      if (filters.is_winner === true && filters.is_claimed === false && filters.is_scratched === undefined) {
-        if (!isReallyScratched) return false // Исключаем нестертые из "Pendientes"
-      }
-      
-      // 2. Применяем поиск
-      const query = searchQuery.toLowerCase().trim()
-      if (!query) return true
-      
-      // Поиск по различным полям
-      const searchFields = [
-        ticket.ticket_number?.toLowerCase(),
-        ticket.barcode?.toLowerCase(),
-        ticket.applications?.user_name?.toLowerCase(),
-        ticket.applications?.user_phone?.toLowerCase(),
-        ticket.applications?.cedula?.toLowerCase(),
-        ticket.applications?.numbers?.join(' ')?.toLowerCase(),
-        ticket.prize_amount?.toString()
-      ].filter(Boolean)
-      
-      return searchFields.some(field => field?.includes(query))
-    })
+      return null
+    }).filter(Boolean) // Убираем null значения
     
-    console.log(`📊 Фильтр результат: ${result.length} из ${tickets.length} билетов`)
+    console.log(`📊 Фильтр результат: ${result.length} групп`)
     
     return result
-  }, [tickets, searchQuery, forceUpdate, filters])
+  }, [groupedTickets, searchQuery, selectedDrawId, forceUpdate, filters])
 
   const handleClaimPrize = async (ticketId: string) => {
     try {
@@ -193,16 +271,36 @@ const InstantTicketsAdmin: React.FC = () => {
           <h1 className="text-2xl font-bold text-white">Gestión de Billetes Instantáneos</h1>
         </div>
         
-        {/* Поиск */}
-        <div className="relative w-80">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-          <Input
-            type="text"
-            placeholder="Buscar por nombre, teléfono, número de billete..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 bg-gray-800/50 border-gray-600 text-white placeholder-gray-400"
-          />
+        {/* Поиск и фильтры */}
+        <div className="flex items-center gap-4">
+          {/* Поиск */}
+          <div className="relative w-80">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <Input
+              type="text"
+              placeholder="Buscar por nombre, teléfono, número de billete..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 bg-gray-800/50 border-gray-600 text-white placeholder-gray-400"
+            />
+          </div>
+          
+          {/* Фильтр по розыгрышу */}
+          <div className="relative">
+            <Filter className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <select
+              value={selectedDrawId || ''}
+              onChange={(e) => setSelectedDrawId(e.target.value || null)}
+              className="w-48 pl-10 pr-4 py-2 bg-white/10 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent appearance-none"
+            >
+              <option value="">Todos los sorteos</option>
+              {groupedTickets?.map(group => (
+                <option key={group.draw_id || 'no-draw'} value={group.draw_id || ''}>
+                  {group.draw_name}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
@@ -296,6 +394,22 @@ const InstantTicketsAdmin: React.FC = () => {
         </div>
       )}
 
+      {/* Botón limpiar filtros y contador */}
+      <div className="flex items-center justify-between mb-4">
+        {(searchQuery || selectedDrawId) && (
+          <button
+            onClick={() => {
+              setSearchQuery('')
+              setSelectedDrawId(null)
+            }}
+            className="text-purple-400 hover:text-purple-300 text-sm font-medium flex items-center gap-2"
+          >
+            <X className="w-4 h-4" />
+            Limpiar filtros
+          </button>
+        )}
+      </div>
+
       {/* Filtros rápidos */}
       <div className="flex flex-wrap gap-2">
         <Button
@@ -308,7 +422,7 @@ const InstantTicketsAdmin: React.FC = () => {
               : 'bg-gray-800 border-gray-600 text-gray-300 hover:bg-gray-700'
           }`}
         >
-          Todos ({tickets?.length || 0})
+          Todos ({groupedTickets?.reduce((total, group) => total + group.tickets.length, 0) || 0})
         </Button>
         
         <Button
@@ -324,7 +438,7 @@ const InstantTicketsAdmin: React.FC = () => {
               : 'bg-blue-800 border-blue-600 text-blue-300 hover:bg-blue-700'
           }`}
         >
-          Sin raspar ({tickets?.filter(t => !isTicketScratched(t)).length || 0})
+          Sin raspar ({groupedTickets?.reduce((total, group) => total + group.tickets.filter(t => !isTicketScratched(t)).length, 0) || 0})
         </Button>
         
         <Button
@@ -340,7 +454,7 @@ const InstantTicketsAdmin: React.FC = () => {
               : 'bg-yellow-800 border-yellow-600 text-yellow-300 hover:bg-yellow-700'
           }`}
         >
-          Raspados ({tickets?.filter(t => isTicketScratched(t) && !t.is_winner).length || 0})
+          Raspados ({groupedTickets?.reduce((total, group) => total + group.tickets.filter(t => isTicketScratched(t) && !t.is_winner).length, 0) || 0})
         </Button>
         
         <Button
@@ -357,7 +471,7 @@ const InstantTicketsAdmin: React.FC = () => {
               : 'bg-orange-800 border-orange-600 text-orange-300 hover:bg-orange-700'
           }`}
         >
-          Pendientes de entregar ({tickets?.filter(t => t.is_winner && isTicketScratched(t) && !t.is_claimed).length || 0})
+          Pendientes de entregar ({groupedTickets?.reduce((total, group) => total + group.tickets.filter(t => t.is_winner && isTicketScratched(t) && !t.is_claimed).length, 0) || 0})
         </Button>
         
         <Button
@@ -374,7 +488,7 @@ const InstantTicketsAdmin: React.FC = () => {
               : 'bg-green-800 border-green-600 text-green-300 hover:bg-green-700'
           }`}
         >
-          Entregados ({tickets?.filter(t => t.is_winner && isTicketScratched(t) && t.is_claimed).length || 0})
+          Entregados ({groupedTickets?.reduce((total, group) => total + group.tickets.filter(t => t.is_winner && isTicketScratched(t) && t.is_claimed).length, 0) || 0})
         </Button>
       </div>
 
@@ -382,14 +496,14 @@ const InstantTicketsAdmin: React.FC = () => {
       <Card className="p-6 bg-white/10 backdrop-blur-sm border-gray-700">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-white">
-            Billetes Instantáneos ({tickets?.length || 0})
+            Billetes Instantáneos ({groupedTickets?.reduce((total, group) => total + group.tickets.length, 0) || 0})
           </h3>
           <div className="text-sm text-gray-400">
             Última actualización: {new Date().toLocaleTimeString()}
           </div>
         </div>
 
-        {ticketsLoading ? (
+        {ticketsLoading || groupedLoading ? (
           <div className="flex items-center justify-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
             <span className="text-white ml-3">Cargando billetes...</span>
@@ -399,20 +513,30 @@ const InstantTicketsAdmin: React.FC = () => {
             <AlertCircle className="w-5 h-5 mr-2" />
             <span>Error al cargar los billetes</span>
           </div>
-        ) : !filteredTickets || filteredTickets.length === 0 ? (
+        ) : !filteredGroupedTickets || filteredGroupedTickets.length === 0 ? (
           <div className="text-center py-8 text-gray-400">
             <Ticket className="w-12 h-12 mx-auto mb-2 opacity-50" />
-            <p>{searchQuery ? 'No se encontraron billetes' : 'No hay billetes instantáneos'}</p>
-            {searchQuery && (
+            <p>{searchQuery || selectedDrawId ? 'No se encontraron billetes' : 'No hay billetes instantáneos'}</p>
+            {(searchQuery || selectedDrawId) && (
               <p className="text-sm mt-2">Intenta con otros términos de búsqueda</p>
             )}
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-8">
             {/* Información de resultados */}
             <div className="text-sm text-gray-400 flex items-center justify-between">
               <div>
-                Mostrando {filteredTickets.length} de {tickets?.length || 0} billetes
+                {searchQuery || selectedDrawId ? (
+                  <>
+                    Mostrando {filteredGroupedTickets.reduce((total, group) => total + group.tickets.length, 0)} billetes 
+                    en {filteredGroupedTickets.length} sorteos
+                  </>
+                ) : (
+                  <>
+                    Total: {groupedTickets?.reduce((total, group) => total + group.tickets.length, 0) || 0} billetes 
+                    en {groupedTickets?.length || 0} sorteos
+                  </>
+                )}
                 {searchQuery && (
                   <span className="ml-2 text-purple-400">
                     • Búsqueda: "{searchQuery}"
@@ -429,7 +553,70 @@ const InstantTicketsAdmin: React.FC = () => {
               </div>
             </div>
             
-            {filteredTickets.map((ticket) => {
+            {filteredGroupedTickets.map((group) => (
+              <motion.div
+                key={group.draw_id || 'no-draw'}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-white/5 backdrop-blur-sm border border-gray-700 rounded-2xl overflow-hidden"
+              >
+                {/* Заголовок группы - информация о розыгрыше */}
+                <div className="bg-gradient-to-r from-purple-600/20 to-blue-600/20 border-b border-gray-700 p-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <Trophy className="w-6 h-6 text-purple-400" />
+                      <div>
+                        <h3 className="text-lg font-bold text-white">{group.draw_name}</h3>
+                        <div className="flex items-center gap-4 text-sm text-gray-300">
+                          {group.draw_date && (
+                            <span className="flex items-center gap-1">
+                              <Calendar className="w-4 h-4" />
+                              {formatDate(group.draw_date)}
+                            </span>
+                          )}
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            group.draw_status === 'finished' ? 'bg-green-500/20 text-green-300' :
+                            group.draw_status === 'active' ? 'bg-orange-500/20 text-orange-300' :
+                            group.draw_status === 'scheduled' ? 'bg-blue-500/20 text-blue-300' :
+                            'bg-gray-500/20 text-gray-300'
+                          }`}>
+                            {group.draw_status === 'finished' ? 'Finalizado' :
+                             group.draw_status === 'active' ? 'Activo' : 'Cancelado'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="text-right">
+                      <div className="text-2xl font-bold text-purple-400">
+                        {group.tickets.length}
+                      </div>
+                      <div className="text-sm text-gray-300">
+                        {group.tickets.length === 1 ? 'billete' : 'billetes'}
+                        {searchQuery && (
+                          <div className="text-xs text-gray-400 mt-1">
+                            encontrados
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Información del ganador si existe */}
+                  {group.winner_number && (
+                    <div className="mt-3 p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
+                      <div className="flex items-center gap-2 text-green-300">
+                        <Trophy className="w-4 h-4" />
+                        <span className="font-medium">Ganador: #{group.winner_number}</span>
+                        {group.winner_name && <span>- {group.winner_name}</span>}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Lista de билетов для этого розыгрыша */}
+                <div className="p-4 space-y-3">
+                  {group.tickets.map((ticket) => {
               // Получаем статус с учетом localStorage
               const isReallyScratched = isTicketScratched(ticket)
               const ticketStatus = InstantTicketUtils.getTicketStatus({
@@ -605,12 +792,12 @@ const InstantTicketsAdmin: React.FC = () => {
                         )}
                       </div>
                     </div>
-                  </div>
-                </motion.div>
-              )
-            })}
-          </div>
-        )}
+                  </motion.div>
+                )
+              })}
+            </div>
+          )}
+        </div>
       </Card>
     </div>
   )
