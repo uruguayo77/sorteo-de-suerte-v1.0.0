@@ -629,7 +629,14 @@ const InstantTicketsAdmin: React.FC = () => {
                 ...ticket,
                 is_scratched: isReallyScratched // Используем гибридный статус
               })
-              const application = ticket.applications
+              // Данные приложения теперь доступны напрямую в ticket
+              const application = {
+                user_name: ticket.user_name,
+                user_phone: ticket.user_phone,
+                cedula: ticket.cedula,
+                numbers: ticket.numbers,
+                status: ticket.application_status
+              }
               
               return (
                 <motion.div
