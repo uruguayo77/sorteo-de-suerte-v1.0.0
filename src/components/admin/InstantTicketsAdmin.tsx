@@ -797,6 +797,8 @@ const InstantTicketsAdmin: React.FC = () => {
                 )
               })}
             </div>
+              </motion.div>
+            ))}
           )}
         </div>
       </Card>
