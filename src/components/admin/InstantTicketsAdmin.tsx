@@ -110,6 +110,21 @@ const InstantTicketsAdmin: React.FC = () => {
         if (!filters.is_claimed && ticket.is_claimed) return false
       }
       
+      // Дополнительная логика для фильтра "Raspados" - показываем только невыигрышные стертые
+      if (filters.is_scratched === true && filters.is_winner === undefined) {
+        if (ticket.is_winner) return false // Исключаем выигрышные из "Raspados"
+      }
+      
+      // Дополнительная логика для фильтра "Entregados" - показываем только стертые и выплаченные
+      if (filters.is_winner === true && filters.is_claimed === true && filters.is_scratched === undefined) {
+        if (!isReallyScratched) return false // Исключаем нестертые из "Entregados"
+      }
+      
+      // Дополнительная логика для фильтра "Pendientes de entregar" - показываем только стертые и невыплаченные
+      if (filters.is_winner === true && filters.is_claimed === false && filters.is_scratched === undefined) {
+        if (!isReallyScratched) return false // Исключаем нестертые из "Pendientes"
+      }
+      
       // 2. Применяем поиск
       const query = searchQuery.toLowerCase().trim()
       if (!query) return true
@@ -317,11 +332,10 @@ const InstantTicketsAdmin: React.FC = () => {
           variant="outline"
           onClick={() => setFilters({ 
             is_scratched: true,
-            is_winner: false,
             limit: 50 
           })}
           className={`border-2 transition-all ${
-            filters.is_scratched === true && filters.is_winner === false && filters.is_claimed === undefined
+            filters.is_scratched === true && filters.is_winner === undefined && filters.is_claimed === undefined
               ? 'bg-yellow-600 border-yellow-400 text-white' 
               : 'bg-yellow-800 border-yellow-600 text-yellow-300 hover:bg-yellow-700'
           }`}
@@ -360,7 +374,7 @@ const InstantTicketsAdmin: React.FC = () => {
               : 'bg-green-800 border-green-600 text-green-300 hover:bg-green-700'
           }`}
         >
-          Entregados ({tickets?.filter(t => t.is_winner && t.is_claimed).length || 0})
+          Entregados ({tickets?.filter(t => t.is_winner && isTicketScratched(t) && t.is_claimed).length || 0})
         </Button>
       </div>
 
@@ -435,7 +449,7 @@ const InstantTicketsAdmin: React.FC = () => {
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <div className="flex-1 grid grid-cols-1 md:grid-cols-5 gap-4">
+                    <div className="flex-1 grid grid-cols-1 md:grid-cols-6 gap-4">
                       {/* Información del billete */}
                       <div>
                         <div className="font-mono text-sm text-white">#{ticket.ticket_number}</div>
@@ -547,8 +561,8 @@ const InstantTicketsAdmin: React.FC = () => {
                             })
                           }
                           
-                          // Если выигрышный билет - показываем кнопку независимо от состояния стертости для тестирования
-                          if (ticket.is_winner && !ticket.is_claimed) {
+                          // Показываем кнопку только если билет стерт и является выигрышным
+                          if (shouldShowButton) {
                             return (
                               <div className="flex flex-col gap-1">
                                 <Button
@@ -563,11 +577,6 @@ const InstantTicketsAdmin: React.FC = () => {
                                   <Banknote className="w-4 h-4 mr-1" />
                                   {claimPrizeMutation.isPending ? 'Procesando...' : 'Entregado'}
                                 </Button>
-                                {!isReallyScratched && (
-                                  <div className="text-xs text-yellow-400">
-                                    ⚠️ Sin raspar
-                                  </div>
-                                )}
                               </div>
                             )
                           }
@@ -579,6 +588,11 @@ const InstantTicketsAdmin: React.FC = () => {
                           /* Зеленый кружок с галочкой для выплаченных */
                           <div className="flex items-center justify-center w-10 h-10 bg-green-600 rounded-full">
                             <CheckCircle className="w-6 h-6 text-white" />
+                          </div>
+                        ) : ticket.is_winner && isReallyScratched && !ticket.is_claimed ? (
+                          /* Оранжевый кружок с часами для готовых к выплате */
+                          <div className="flex items-center justify-center w-10 h-10 bg-orange-600/20 border-2 border-orange-600 rounded-full">
+                            <Clock className="w-5 h-5 text-orange-400" />
                           </div>
                         ) : ticket.is_winner && !isReallyScratched ? (
                           /* Иконка ожидания для выигрышных нестертых */
