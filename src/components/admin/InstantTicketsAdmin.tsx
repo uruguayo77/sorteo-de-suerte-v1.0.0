@@ -643,9 +643,9 @@ const InstantTicketsAdmin: React.FC = () => {
                   key={ticket.id}
                   layout
                   className={`p-4 rounded-lg border transition-all ${
-                    // Зеленая подсветка для выплаченных выигрышных билетов
+                    // Яркая салатовая подсветка для выплаченных выигрышных билетов
                     ticket.is_winner && ticket.is_claimed
-                      ? 'bg-green-800/30 border-green-500/50 shadow-md shadow-green-500/20'
+                      ? 'bg-green-600/50 border-green-400/70 shadow-lg shadow-green-400/30'
                     // Светло-зеленая подсветка для выигрышных билетов, готовых к выплате
                     : ticket.is_winner && isReallyScratched && !ticket.is_claimed
                       ? 'bg-green-800/20 border-green-600/40 shadow-sm shadow-green-600/10'
@@ -718,9 +718,9 @@ const InstantTicketsAdmin: React.FC = () => {
                       <div>
                         {/* Главный badge состояния */}
                         {ticket.is_winner && isReallyScratched && ticket.is_claimed ? (
-                          <Badge className="bg-green-600 text-white border-green-500">
+                          <Badge className="bg-green-500 text-white border-green-400">
                             <CheckCircle className="w-3 h-3 mr-1" />
-                            Entregado
+                            Reclamado
                           </Badge>
                         ) : ticket.is_winner && isReallyScratched && !ticket.is_claimed ? (
                           <Badge className="bg-orange-600 text-white border-orange-500">
