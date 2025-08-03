@@ -643,9 +643,17 @@ const InstantTicketsAdmin: React.FC = () => {
                   key={ticket.id}
                   layout
                   className={`p-4 rounded-lg border transition-all ${
+                    // Зеленая подсветка для выплаченных выигрышных билетов
                     ticket.is_winner && ticket.is_claimed
-                      ? 'bg-green-800/30 border-green-500/50 shadow-md shadow-green-500/20' // Подсветка для выплаченных
-                      : 'bg-gray-800/50 border-gray-600/30'
+                      ? 'bg-green-800/30 border-green-500/50 shadow-md shadow-green-500/20'
+                    // Светло-зеленая подсветка для выигрышных билетов, готовых к выплате
+                    : ticket.is_winner && isReallyScratched && !ticket.is_claimed
+                      ? 'bg-green-800/20 border-green-600/40 shadow-sm shadow-green-600/10'
+                    // Красная полупрозрачная подсветка для проигрышных билетов
+                    : !ticket.is_winner && isReallyScratched
+                      ? 'bg-red-800/20 border-red-600/30 shadow-sm shadow-red-600/10'
+                    // Обычный фон для остальных
+                    : 'bg-gray-800/50 border-gray-600/30'
                   }`}
                 >
                   <div className="flex items-center justify-between">
@@ -746,63 +754,58 @@ const InstantTicketsAdmin: React.FC = () => {
 
                       {/* Acciones */}
                       <div className="flex items-center justify-center">
-                        {/* Кнопки для выигрышных билетов */}
+                        {/* Логика отображения кнопок и иконок */}
                         {(() => {
-                          const shouldShowButton = ticket.is_winner && isReallyScratched && !ticket.is_claimed
-                          
                           // Логирование для отладки
                           if (ticket.is_winner) {
-                            console.log(`🎯 Кнопка для билета ${ticket.ticket_number}:`, {
+                            console.log(`🎯 Статус билета ${ticket.ticket_number}:`, {
                               is_winner: ticket.is_winner,
                               isReallyScratched: isReallyScratched,
                               is_claimed: ticket.is_claimed,
-                              shouldShowButton: shouldShowButton,
                               isPending: claimPrizeMutation.isPending
                             })
                           }
-                          
-                          // Показываем кнопку только если билет стерт и является выигрышным
-                          if (shouldShowButton) {
+
+                          // 1. Если билет выиграл и уже выплачен - показываем зеленую галочку
+                          if (ticket.is_winner && ticket.is_claimed) {
                             return (
-                              <div className="flex flex-col gap-1">
-                                <Button
-                                  size="sm"
-                                  onClick={() => {
-                                    console.log('🔥 Кнопка Entregado нажата для билета:', ticket.id, ticket.ticket_number)
-                                    handleClaimPrize(ticket.id)
-                                  }}
-                                  disabled={claimPrizeMutation.isPending}
-                                  className="bg-green-600 hover:bg-green-700 text-xs"
-                                >
-                                  <Banknote className="w-4 h-4 mr-1" />
-                                  {claimPrizeMutation.isPending ? 'Procesando...' : 'Entregado'}
-                                </Button>
+                              <div className="flex items-center justify-center w-10 h-10 bg-green-600 rounded-full">
+                                <CheckCircle className="w-6 h-6 text-white" />
                               </div>
                             )
                           }
-                          
-                          return null
+
+                          // 2. Если билет выиграл, стерт, но не выплачен - показываем кнопку "Entregado"
+                          if (ticket.is_winner && isReallyScratched && !ticket.is_claimed) {
+                            return (
+                              <button
+                                onClick={() => {
+                                  console.log('🔥 Кнопка Entregado нажата для билета:', ticket.id, ticket.ticket_number)
+                                  handleClaimPrize(ticket.id)
+                                }}
+                                disabled={claimPrizeMutation.isPending}
+                                className="px-4 py-2 bg-green-500 hover:bg-green-400 text-white text-sm font-medium rounded-full transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <CheckCircle className="w-4 h-4" />
+                                  {claimPrizeMutation.isPending ? 'Procesando...' : 'Entregado'}
+                                </div>
+                              </button>
+                            )
+                          }
+
+                          // 3. Если билет выиграл, но не стерт - показываем желтые часы (ожидание)
+                          if (ticket.is_winner && !isReallyScratched) {
+                            return (
+                              <div className="flex items-center justify-center w-10 h-10 bg-yellow-600/20 border-2 border-yellow-600 rounded-full">
+                                <Clock className="w-5 h-5 text-yellow-400" />
+                              </div>
+                            )
+                          }
+
+                          // 4. Для всех остальных билетов - пустое место
+                          return <div className="w-10 h-10"></div>
                         })()}
-                        
-                        {ticket.is_winner && isReallyScratched && ticket.is_claimed ? (
-                          /* Зеленый кружок с галочкой для выплаченных */
-                          <div className="flex items-center justify-center w-10 h-10 bg-green-600 rounded-full">
-                            <CheckCircle className="w-6 h-6 text-white" />
-                          </div>
-                        ) : ticket.is_winner && isReallyScratched && !ticket.is_claimed ? (
-                          /* Оранжевый кружок с часами для готовых к выплате */
-                          <div className="flex items-center justify-center w-10 h-10 bg-orange-600/20 border-2 border-orange-600 rounded-full">
-                            <Clock className="w-5 h-5 text-orange-400" />
-                          </div>
-                        ) : ticket.is_winner && !isReallyScratched ? (
-                          /* Иконка ожидания для выигрышных нестертых */
-                          <div className="flex items-center justify-center w-10 h-10 bg-yellow-600/20 border-2 border-yellow-600 rounded-full">
-                            <Clock className="w-5 h-5 text-yellow-400" />
-                          </div>
-                        ) : (
-                          /* Пустое место для остальных */
-                          <div className="w-10 h-10"></div>
-                        )}
                       </div>
                     </div>
                   </div>

@@ -111,10 +111,12 @@ export function useClaimPrize() {
       queryClient.invalidateQueries({ queryKey: ['instant-tickets'] })
       queryClient.invalidateQueries({ queryKey: ['instant-tickets-admin'] })
       queryClient.invalidateQueries({ queryKey: ['instant-tickets-stats'] })
+      queryClient.invalidateQueries({ queryKey: ['instant-tickets-grouped-by-draw'] })
       
       // Принудительно рефетчим
       queryClient.refetchQueries({ queryKey: ['instant-tickets-admin'] })
       queryClient.refetchQueries({ queryKey: ['instant-tickets-stats'] })
+      queryClient.refetchQueries({ queryKey: ['instant-tickets-grouped-by-draw'] })
       
       toast.success('¡Premio reclamado!', {
         description: 'El premio ha sido marcado como entregado'
