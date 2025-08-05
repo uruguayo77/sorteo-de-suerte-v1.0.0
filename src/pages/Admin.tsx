@@ -6,11 +6,13 @@ import { useScheduledDrawAutostart } from '@/hooks/use-scheduled-draws'
 import { useAdminAuth } from '@/hooks/use-admin-auth'
 import { Application } from '@/lib/supabase'
 import { toast } from 'sonner'
-import { Check, X, Clock, User, Phone, CreditCard, Image as ImageIcon, Calendar, FileText, LogOut, ArrowLeft, Users, Trophy, Search, Filter, Monitor, Ticket } from 'lucide-react'
+import { Check, X, Clock, User, Phone, CreditCard, Image as ImageIcon, Calendar, FileText, LogOut, ArrowLeft, Users, Trophy, Search, Filter, Monitor, Ticket, BarChart3 } from 'lucide-react'
 import { useNavigate, Link } from 'react-router-dom'
 import { AdminLotteryPanel } from '@/components/AdminLotteryPanel'
 import OnboardingAdmin from '@/components/admin/OnboardingAdmin'
 import InstantTicketsAdmin from '@/components/admin/InstantTicketsAdmin'
+import { AnalyticsDashboard } from '@/components/admin/AnalyticsDashboard'
+import { ActiveReservationsTable } from '@/components/admin/ActiveReservationsTable'
 
 const Admin = () => {
   const { data: applications, isLoading: applicationsLoading, error } = useApplications()
@@ -22,7 +24,7 @@ const Admin = () => {
   useScheduledDrawAutostart()
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null)
   const [adminNotes, setAdminNotes] = useState('')
-  const [activeTab, setActiveTab] = useState<'applications' | 'draws' | 'onboarding' | 'instant-tickets'>('applications')
+  const [activeTab, setActiveTab] = useState<'applications' | 'draws' | 'onboarding' | 'instant-tickets' | 'analytics'>('applications')
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedDrawId, setSelectedDrawId] = useState<string | null>(null)
   const navigate = useNavigate()
@@ -266,6 +268,18 @@ const Admin = () => {
               <Ticket className="w-4 h-4" />
               <span className="hidden sm:inline">Billetes</span>
               <span className="sm:hidden">Tickets</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('analytics')}
+              className={`flex-1 min-w-[120px] px-4 py-3 rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-2 whitespace-nowrap ${
+                activeTab === 'analytics'
+                  ? 'bg-purple-600 text-white shadow-lg'
+                  : 'text-gray-300 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              <BarChart3 className="w-4 h-4" />
+              <span className="hidden sm:inline">Analítica</span>
+              <span className="sm:hidden">Stats</span>
             </button>
           </div>
         </div>
@@ -573,6 +587,21 @@ const Admin = () => {
                 transition={{ duration: 0.3 }}
               >
                 <InstantTicketsAdmin />
+              </motion.div>
+            )}
+
+            {activeTab === 'analytics' && (
+              <motion.div
+                key="analytics"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <div className="space-y-8">
+                  <AnalyticsDashboard />
+                  <ActiveReservationsTable />
+                </div>
               </motion.div>
             )}
           </AnimatePresence>

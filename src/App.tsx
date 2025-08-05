@@ -9,12 +9,22 @@ import AdminLogin from "./pages/AdminLogin";
 import QRVerification from "./pages/QRVerification";
 import NotFound from "./pages/NotFound";
 import { useSpanishValidation } from "@/hooks/use-spanish-validation";
+import { useActivityTracker } from "@/hooks/use-activity-tracker";
 
 const queryClient = new QueryClient();
 
 const App = () => {
   // Apply Spanish validation globally
   useSpanishValidation();
+  
+  // Initialize activity tracking
+  useActivityTracker({
+    enabled: true,
+    batchSize: 10,
+    flushInterval: 30000,
+    trackPageViews: true,
+    trackUserInteractions: true
+  });
 
   return (
     <QueryClientProvider client={queryClient}>
