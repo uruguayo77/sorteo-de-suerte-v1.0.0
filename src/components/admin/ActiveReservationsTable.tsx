@@ -40,8 +40,35 @@ export function ActiveReservationsTable() {
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [sortBy, setSortBy] = useState<'time_remaining' | 'created' | 'name'>('time_remaining')
+  const [currentTime, setCurrentTime] = useState(new Date())
 
-  // Фильтрация и сортировка
+  // Обновляем время каждую секунду для синхронизации
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date())
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [])
+
+  // Функция для получения реального статуса бронирования
+  const getRealTimeStatus = (reservation: any) => {
+    if (!reservation.reservation_expires_at) return 'no_timer'
+    
+    const now = currentTime.getTime()
+    const expire = new Date(reservation.reservation_expires_at).getTime()
+    const difference = expire - now
+    
+    if (difference <= 0) return 'expired'
+    
+    const totalSeconds = Math.floor(difference / 1000)
+    if (totalSeconds <= 300) return 'expiring_soon' // 5 минут
+    if (totalSeconds <= 600) return 'expiring_warning' // 10 минут
+    
+    return 'active'
+  }
+
+  // Фильтрация и сортировка с учетом реального времени
   const filteredAndSortedReservations = React.useMemo(() => {
     if (!reservations) return []
 
@@ -49,11 +76,12 @@ export function ActiveReservationsTable() {
       // Поиск по имени, телефону или cédula
       const searchMatch = !searchQuery || 
         reservation.user_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        reservation.user_phone?.includes(searchQuery) ||
-        reservation.cedula?.includes(searchQuery)
+        reservation.user_phone?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        reservation.cedula?.toLowerCase().includes(searchQuery.toLowerCase())
 
-      // Фильтр по статусу
-      const statusMatch = statusFilter === 'all' || reservation.reservation_status === statusFilter
+      // Фильтр по статусу с учетом реального времени
+      const realTimeStatus = getRealTimeStatus(reservation)
+      const statusMatch = statusFilter === 'all' || realTimeStatus === statusFilter
 
       return searchMatch && statusMatch
     })
@@ -79,19 +107,26 @@ export function ActiveReservationsTable() {
     })
 
     return filtered
-  }, [reservations, searchQuery, statusFilter, sortBy])
+  }, [reservations, searchQuery, statusFilter, sortBy, currentTime])
 
-  // Статистика
+  // Статистика с учетом реального времени
   const stats = React.useMemo(() => {
-    if (!reservations) return { total: 0, active: 0, expiring: 0, critical: 0 }
+    if (!reservations) return { total: 0, active: 0, expiring: 0, critical: 0, expired: 0 }
+
+    const statusCounts = reservations.reduce((acc, reservation) => {
+      const realStatus = getRealTimeStatus(reservation)
+      acc[realStatus] = (acc[realStatus] || 0) + 1
+      return acc
+    }, {} as Record<string, number>)
 
     return {
       total: reservations.length,
-      active: reservations.filter(r => r.reservation_status === 'active').length,
-      expiring: reservations.filter(r => r.reservation_status === 'expiring_warning').length,
-      critical: reservations.filter(r => r.reservation_status === 'expiring_soon').length
+      active: statusCounts.active || 0,
+      expiring: statusCounts.expiring_warning || 0,
+      critical: statusCounts.expiring_soon || 0,
+      expired: statusCounts.expired || 0
     }
-  }, [reservations])
+  }, [reservations, currentTime])
 
   if (isError) {
     return (
@@ -121,6 +156,9 @@ export function ActiveReservationsTable() {
                 {stats.critical} críticas
               </Badge>
             )}
+            <Badge variant="outline" className="text-xs">
+              🕒 Tiempo real: {currentTime.toLocaleTimeString()}
+            </Badge>
           </CardTitle>
           
           <Button 
@@ -134,8 +172,8 @@ export function ActiveReservationsTable() {
           </Button>
         </div>
 
-        {/* Estadísticas rápidas */}
-        <div className="grid grid-cols-4 gap-4 mt-4">
+        {/* Estadísticas rápidas - actualizadas en tiempo real */}
+        <div className="grid grid-cols-5 gap-4 mt-4">
           <div className="text-center">
             <p className="text-2xl font-bold text-white">{stats.total}</p>
             <p className="text-xs text-gray-400">Total</p>
@@ -149,8 +187,12 @@ export function ActiveReservationsTable() {
             <p className="text-xs text-gray-400">Advertencia</p>
           </div>
           <div className="text-center">
-            <p className="text-2xl font-bold text-red-400">{stats.critical}</p>
+            <p className="text-2xl font-bold text-red-400 animate-pulse">{stats.critical}</p>
             <p className="text-xs text-gray-400">Críticas</p>
+          </div>
+          <div className="text-center">
+            <p className="text-2xl font-bold text-gray-400">{stats.expired}</p>
+            <p className="text-xs text-gray-400">Expiradas</p>
           </div>
         </div>
 
@@ -287,7 +329,7 @@ export function ActiveReservationsTable() {
                     <TableCell>
                       <CountdownDisplay 
                         expiresAt={reservation.reservation_expires_at}
-                        status={reservation.reservation_status}
+                        status={getRealTimeStatus(reservation)}
                         secondsRemaining={reservation.seconds_remaining}
                       />
                     </TableCell>
@@ -395,29 +437,43 @@ interface CountdownDisplayProps {
 
 function CountdownDisplay({ expiresAt, status, secondsRemaining }: CountdownDisplayProps) {
   const [timeLeft, setTimeLeft] = useState<string>('')
+  const [currentStatus, setCurrentStatus] = useState(status)
   const [isExpired, setIsExpired] = useState(false)
 
   React.useEffect(() => {
-    if (!expiresAt || status === 'expired') {
-      setTimeLeft('Expirado')
-      setIsExpired(true)
+    if (!expiresAt) {
+      setTimeLeft('Sin límite')
+      setCurrentStatus('no_timer')
+      setIsExpired(false)
       return
     }
 
     const interval = setInterval(() => {
+      // Используем UTC время для точного расчета
       const now = new Date().getTime()
       const expire = new Date(expiresAt).getTime()
       const difference = expire - now
 
       if (difference <= 0) {
         setTimeLeft('Expirado')
+        setCurrentStatus('expired')
         setIsExpired(true)
         return
       }
 
-      const hours = Math.floor(difference / (1000 * 60 * 60))
-      const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60))
-      const seconds = Math.floor((difference % (1000 * 60)) / 1000)
+      const totalSeconds = Math.floor(difference / 1000)
+      const hours = Math.floor(totalSeconds / 3600)
+      const minutes = Math.floor((totalSeconds % 3600) / 60)
+      const seconds = totalSeconds % 60
+      
+      // Обновляем статус в реальном времени
+      if (totalSeconds <= 300) { // 5 минут
+        setCurrentStatus('expiring_soon')
+      } else if (totalSeconds <= 600) { // 10 минут
+        setCurrentStatus('expiring_warning')
+      } else {
+        setCurrentStatus('active')
+      }
       
       if (hours > 0) {
         setTimeLeft(`${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`)
@@ -429,28 +485,72 @@ function CountdownDisplay({ expiresAt, status, secondsRemaining }: CountdownDisp
     }, 1000)
 
     return () => clearInterval(interval)
-  }, [expiresAt, status])
+  }, [expiresAt])
 
   const getTimeColor = () => {
-    if (isExpired || status === 'expired') return 'text-red-400'
-    if (status === 'expiring_soon') return 'text-red-400 animate-pulse'
-    if (status === 'expiring_warning') return 'text-yellow-400'
+    if (isExpired || currentStatus === 'expired') return 'text-red-400'
+    if (currentStatus === 'expiring_soon') return 'text-red-400 animate-pulse'
+    if (currentStatus === 'expiring_warning') return 'text-yellow-400'
+    if (currentStatus === 'no_timer') return 'text-blue-400'
     return 'text-green-400'
   }
 
+  const getStatusBadge = () => {
+    switch (currentStatus) {
+      case 'expired':
+        return (
+          <Badge variant="destructive" className="flex items-center gap-1">
+            <XCircle className="w-3 h-3" />
+            Expirado
+          </Badge>
+        )
+      case 'expiring_soon':
+        return (
+          <Badge variant="destructive" className="flex items-center gap-1 animate-pulse">
+            <AlertTriangle className="w-3 h-3" />
+            Crítico
+          </Badge>
+        )
+      case 'expiring_warning':
+        return (
+          <Badge variant="outline" className="flex items-center gap-1 border-yellow-500 text-yellow-400">
+            <AlertTriangle className="w-3 h-3" />
+            Advertencia
+          </Badge>
+        )
+      case 'no_timer':
+        return (
+          <Badge variant="outline" className="flex items-center gap-1 border-blue-500 text-blue-400">
+            <Timer className="w-3 h-3" />
+            Sin límite
+          </Badge>
+        )
+      default:
+        return (
+          <Badge variant="default" className="flex items-center gap-1 border-green-500 text-green-400">
+            <CheckCircle className="w-3 h-3" />
+            Activo
+          </Badge>
+        )
+    }
+  }
+
   return (
-    <div className="flex items-center gap-2">
-      <Timer className="w-4 h-4 text-gray-400" />
-      <div>
-        <p className={`text-sm font-mono font-bold ${getTimeColor()}`}>
-          {timeLeft}
-        </p>
-        {!isExpired && expiresAt && (
-          <p className="text-xs text-gray-400">
-            hasta {new Date(expiresAt).toLocaleTimeString()}
+    <div className="flex flex-col items-start gap-2">
+      <div className="flex items-center gap-2">
+        <Timer className="w-4 h-4 text-gray-400" />
+        <div>
+          <p className={`text-sm font-mono font-bold ${getTimeColor()}`}>
+            {timeLeft}
           </p>
-        )}
+          {!isExpired && expiresAt && currentStatus !== 'no_timer' && (
+            <p className="text-xs text-gray-400">
+              hasta {new Date(expiresAt).toLocaleTimeString()}
+            </p>
+          )}
+        </div>
       </div>
+      {getStatusBadge()}
     </div>
   )
 }
