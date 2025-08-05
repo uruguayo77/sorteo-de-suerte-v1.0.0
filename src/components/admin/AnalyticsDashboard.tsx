@@ -12,6 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useAnalyticsDashboard, useAnalyticsAlerts } from '@/hooks/use-analytics-dashboard'
 import { AnalyticsExport } from './AnalyticsExport'
+import { ActivityChart } from './ActivityChart'
 import { 
   Users, 
   Clock, 
@@ -123,7 +124,7 @@ export function AnalyticsDashboard() {
       </div>
 
       {/* Tarjetas de métricas principales */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
         {/* Usuarios en línea */}
         <MetricCard
           title="Usuarios en Línea"
@@ -193,7 +194,7 @@ export function AnalyticsDashboard() {
       )}
 
       {/* Información detallada en columnas */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 lg:gap-6">
         {/* Usuarios activos */}
         <Card className="bg-gray-800/50 border-gray-600">
           <CardHeader>
@@ -338,7 +339,7 @@ export function AnalyticsDashboard() {
               ))}
             </div>
           ) : data.conversionStats.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
               {data.conversionStats.slice(0, 5).map((stat, index) => (
                 <motion.div
                   key={stat.date}
@@ -371,6 +372,9 @@ export function AnalyticsDashboard() {
           )}
         </CardContent>
       </Card>
+
+      {/* Gráficos de actividad */}
+      <ActivityChart />
 
       {/* Sección de exportación */}
       <div id="analytics-export">

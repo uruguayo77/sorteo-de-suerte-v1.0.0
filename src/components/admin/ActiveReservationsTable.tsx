@@ -173,7 +173,7 @@ export function ActiveReservationsTable() {
         </div>
 
         {/* Estadísticas rápidas - actualizadas en tiempo real */}
-        <div className="grid grid-cols-5 gap-4 mt-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-4 mt-4">
           <div className="text-center">
             <p className="text-2xl font-bold text-white">{stats.total}</p>
             <p className="text-xs text-gray-400">Total</p>
@@ -249,13 +249,13 @@ export function ActiveReservationsTable() {
             <Table>
               <TableHeader>
                 <TableRow className="border-gray-600">
-                  <TableHead className="text-gray-300">Estado</TableHead>
-                  <TableHead className="text-gray-300">Usuario</TableHead>
-                  <TableHead className="text-gray-300">Contacto</TableHead>
-                  <TableHead className="text-gray-300">Números</TableHead>
-                  <TableHead className="text-gray-300">Sorteo</TableHead>
-                  <TableHead className="text-gray-300">Tiempo Restante</TableHead>
-                  <TableHead className="text-gray-300">Iniciada</TableHead>
+                  <TableHead className="text-gray-300 min-w-[80px]">Estado</TableHead>
+                  <TableHead className="text-gray-300 min-w-[120px]">Usuario</TableHead>
+                  <TableHead className="text-gray-300 min-w-[120px] hidden sm:table-cell">Contacto</TableHead>
+                  <TableHead className="text-gray-300 min-w-[100px] hidden md:table-cell">Números</TableHead>
+                  <TableHead className="text-gray-300 min-w-[120px] hidden lg:table-cell">Sorteo</TableHead>
+                  <TableHead className="text-gray-300 min-w-[150px]">Tiempo Restante</TableHead>
+                  <TableHead className="text-gray-300 min-w-[120px] hidden xl:table-cell">Iniciada</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -285,7 +285,7 @@ export function ActiveReservationsTable() {
                       </div>
                     </TableCell>
                     
-                    <TableCell>
+                    <TableCell className="hidden sm:table-cell">
                       <div className="flex items-center gap-2">
                         <Phone className="w-4 h-4 text-gray-400" />
                         <p className="text-gray-300 text-sm">
@@ -294,27 +294,30 @@ export function ActiveReservationsTable() {
                       </div>
                     </TableCell>
                     
-                    <TableCell>
+                    <TableCell className="hidden md:table-cell">
                       <div className="flex items-center gap-2">
                         <Hash className="w-4 h-4 text-gray-400" />
-                        <div className="flex flex-wrap gap-1">
+                        <div className="flex flex-wrap gap-1 max-w-[100px]">
                           {Array.isArray(reservation.numbers) ? 
-                            reservation.numbers.map((number, i) => (
+                            reservation.numbers.slice(0, 3).map((number, i) => (
                               <Badge key={i} variant="outline" className="text-xs">
                                 {number}
                               </Badge>
                             )) : 
                             <span className="text-gray-400 text-xs">Sin números</span>
                           }
+                          {Array.isArray(reservation.numbers) && reservation.numbers.length > 3 && (
+                            <span className="text-gray-400 text-xs">+{reservation.numbers.length - 3}</span>
+                          )}
                         </div>
                       </div>
                     </TableCell>
                     
-                    <TableCell>
+                    <TableCell className="hidden lg:table-cell">
                       <div className="flex items-center gap-2">
                         <Calendar className="w-4 h-4 text-gray-400" />
                         <div>
-                          <p className="text-gray-300 text-sm">
+                          <p className="text-gray-300 text-sm truncate max-w-[120px]">
                             {reservation.draw_name || 'Sin sorteo'}
                           </p>
                           {reservation.draw_date && (
@@ -334,7 +337,7 @@ export function ActiveReservationsTable() {
                       />
                     </TableCell>
                     
-                    <TableCell>
+                    <TableCell className="hidden xl:table-cell">
                       <p className="text-gray-300 text-sm">
                         {reservation.reservation_started_at ? 
                           new Date(reservation.reservation_started_at).toLocaleString() : 
@@ -536,21 +539,23 @@ function CountdownDisplay({ expiresAt, status, secondsRemaining }: CountdownDisp
   }
 
   return (
-    <div className="flex flex-col items-start gap-2">
-      <div className="flex items-center gap-2">
-        <Timer className="w-4 h-4 text-gray-400" />
+    <div className="flex flex-col items-start gap-1 sm:gap-2">
+      <div className="flex items-center gap-1 sm:gap-2">
+        <Timer className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400" />
         <div>
-          <p className={`text-sm font-mono font-bold ${getTimeColor()}`}>
+          <p className={`text-xs sm:text-sm font-mono font-bold ${getTimeColor()}`}>
             {timeLeft}
           </p>
           {!isExpired && expiresAt && currentStatus !== 'no_timer' && (
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-gray-400 hidden sm:block">
               hasta {new Date(expiresAt).toLocaleTimeString()}
             </p>
           )}
         </div>
       </div>
-      {getStatusBadge()}
+      <div className="w-full">
+        {getStatusBadge()}
+      </div>
     </div>
   )
 }
