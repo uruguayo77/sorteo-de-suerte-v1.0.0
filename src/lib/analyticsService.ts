@@ -38,7 +38,7 @@ export interface ActiveReservation {
   reservation_expires_at?: string
   draw_name?: string
   draw_date?: string
-  current_time: string
+  query_time: string
   time_remaining?: string
   reservation_status: 'no_timer' | 'expired' | 'expiring_soon' | 'expiring_warning' | 'active'
   seconds_remaining?: number
@@ -118,9 +118,7 @@ export class AnalyticsService {
   static async getActiveUsers(): Promise<ActiveUser[]> {
     try {
       const { data, error } = await supabase
-        .from('v_active_users_realtime')
-        .select('*')
-        .limit(100)
+        .rpc('get_active_users_public')
 
       if (error) {
         console.error('❌ Ошибка получения активных пользователей:', error)
@@ -141,9 +139,7 @@ export class AnalyticsService {
   static async getActiveReservations(): Promise<ActiveReservation[]> {
     try {
       const { data, error } = await supabase
-        .from('v_active_reservations')
-        .select('*')
-        .limit(50)
+        .rpc('get_active_reservations_public')
 
       if (error) {
         console.error('❌ Ошибка получения активных бронирований:', error)
