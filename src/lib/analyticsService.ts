@@ -36,7 +36,7 @@ export interface ActiveReservation {
   numbers: number[]
   reservation_started_at?: string
   reservation_expires_at?: string
-  draw_name?: string
+  draw_name?: string // CHARACTER VARYING(255) from PostgreSQL
   draw_date?: string
   query_time: string
   time_remaining?: string
