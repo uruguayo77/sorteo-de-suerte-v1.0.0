@@ -118,7 +118,7 @@ export class AnalyticsService {
   static async getActiveUsers(): Promise<ActiveUser[]> {
     try {
       const { data, error } = await supabase
-        .rpc('get_active_users_public')
+        .rpc('get_users_analytics')
 
       if (error) {
         console.error('❌ Ошибка получения активных пользователей:', error)
@@ -139,7 +139,7 @@ export class AnalyticsService {
   static async getActiveReservations(): Promise<ActiveReservation[]> {
     try {
       const { data, error } = await supabase
-        .rpc('get_active_reservations_public')
+        .rpc('get_reservations_analytics')
 
       if (error) {
         console.error('❌ Ошибка получения активных бронирований:', error)
