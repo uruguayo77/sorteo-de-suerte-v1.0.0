@@ -37,7 +37,7 @@ const PaymentDetails = ({ method, selectedNumbers, onContinue }: PaymentDetailsP
       title: 'Pago Móvil',
       fields: [
         { label: 'Banco', value: 'Bancamiga' },
-        { label: 'Teléfono', value: '0424-3579080' },
+        { label: 'Teléfono', value: '04241351781' },
         { label: 'Cédula', value: 'P-736524931' },
         { label: 'Monto', value: `${totalPriceBs} Bs` }
       ],
