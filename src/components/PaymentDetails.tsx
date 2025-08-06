@@ -38,7 +38,7 @@ const PaymentDetails = ({ method, selectedNumbers, onContinue }: PaymentDetailsP
       fields: [
         { label: 'Banco', value: 'Bancamiga' },
         { label: 'Teléfono', value: '04241351781' },
-        { label: 'Cédula', value: 'P-736524931' },
+        { label: 'Cédula', value: 'V-28015801' },
         { label: 'Monto', value: `${totalPriceBs} Bs` }
       ],
       instructions: 'Copia los datos bancarios, realiza la transferencia desde tu app bancaria por el monto exacto y sube el comprobante en el siguiente paso.'
